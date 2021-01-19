@@ -1,0 +1,24 @@
+{
+    "name": "axenox/oauth2connector",
+    "require": {
+        "exface/core": "^1.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "\\axenox\\OAuth2Connector\\": ""
+        },
+        "exclude-from-classmap": [
+            "/Config/",
+            "/Translations/",
+            "/Model/"
+        ]
+    },
+    "extra": {
+        "app": {
+            "app_uid": "0x11ebb9fe152517a0b9fe847beb4a5184",
+            "app_alias": "axenox.OAuth2Connector",
+            "model_md5": "72755b246663e40cd9670879f1fa77de",
+            "model_timestamp": "2021-01-19 12:25:49"
+        }
+    }
+}
