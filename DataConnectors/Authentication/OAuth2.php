@@ -6,7 +6,7 @@ use exface\UrlDataConnector\Interfaces\UrlConnectionInterface;
 use exface\Core\CommonLogic\Traits\ImportUxonObjectTrait;
 use exface\Core\Interfaces\Security\AuthenticationTokenInterface;
 use exface\Core\Interfaces\Widgets\iContainOtherWidgets;
-use exface\UrlDataConnector\Facades\OAuth2ClientFacade;
+use axenox\OAuth2Connector\Facades\OAuth2ClientFacade;
 use exface\Core\Factories\FacadeFactory;
 use exface\UrlDataConnector\Interfaces\HttpAuthenticationProviderInterface;
 
