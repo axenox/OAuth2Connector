@@ -35,6 +35,7 @@ class OAuth2Authenticator extends AbstractAuthenticator
             return new OAuth2AccessToken($user->getUsername(), $token->getAccessToken(), $token->getFacade());
         }
         $this->authenticatedToken = $token;
+        $this->storeToken($token->getAccessToken());
         return $token;
     }
 
