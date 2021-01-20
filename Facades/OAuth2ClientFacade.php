@@ -12,7 +12,6 @@ use axenox\OAuth2Connector\CommonLogic\Security\AuthenticationToken\OAuth2Reques
 use exface\Core\Interfaces\Security\AuthenticatorInterface;
 use exface\Core\Exceptions\InvalidArgumentException;
 use exface\Core\Exceptions\RuntimeException;
-use exface\Core\Exceptions\Facades\FacadeRuntimeError;
 use exface\Core\Exceptions\Security\AuthenticationFailedError;
 use axenox\OAuth2Connector\Exceptions\OAuthSessionNotStartedException;
 
@@ -52,36 +51,23 @@ class OAuth2ClientFacade extends AbstractHttpFacade
             $authProvider->authenticate($requestToken);
         } else {
             $session = $this->getOAuthSession();
-            $redirect = null;
+            $redirect = $session['redirect'];
             
             switch ($session['type']) {
                 case self::INITIATOR_TYPE_AUTHENTICATOR:
                     // TODO
                     break;
                 case self::INITIATOR_TYPE_CONNECTION:
-                    $connection = DataConnectionFactory::createFromModel($this->getWorkbench(), $session['selector']);
-                    if ($connection->isOAuthInitiator($requestToken, $session['vars'])) {
-                        $authProvider = $connection;
-                        $redirect = $session['redirect'];
-                        
-                        try {
-                            $connection->authenticate($requestToken, true, $this->getWorkbench()->getSecurity()->getAuthenticatedUser(), true);
-                        } catch (AuthenticationFailedError $e) {
-                            $this->getWorkbench()->getLogger()->logException($e);
-                        }
-                        
-                        break;
+                    $authProvider = DataConnectionFactory::createFromModel($this->getWorkbench(), $session['selector']);
+                    try {
+                        $authProvider->authenticate($requestToken, true, $this->getWorkbench()->getSecurity()->getAuthenticatedUser(), true);
+                    } catch (AuthenticationFailedError $e) {
+                        $this->getWorkbench()->getLogger()->logException($e);
                     }
                     break;
                 default:
                     throw new RuntimeException('Invalid OAuth2 session type "' . $session['type'] . '"!');
             }
-        }
-        
-        // TODO detect broken sessions (state mismatch) and remove them!
-        
-        if (! $authProvider) {
-            throw new FacadeRuntimeError('No OAuth2 session found for current request!');
         }
         
         $redirect = $redirect ? $redirect : $this->getWorkbench()->getUrl();
