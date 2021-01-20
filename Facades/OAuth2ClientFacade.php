@@ -14,13 +14,14 @@ use exface\Core\Exceptions\InvalidArgumentException;
 use exface\Core\Exceptions\RuntimeException;
 use exface\Core\Exceptions\Security\AuthenticationFailedError;
 use axenox\OAuth2Connector\Exceptions\OAuthSessionNotStartedException;
+use axenox\OAuth2Connector\Interfaces\OAuth2ClientFacadeInterface;
 
 /**
  * 
  * @author Andrej Kabachnik
  *
  */
-class OAuth2ClientFacade extends AbstractHttpFacade
+class OAuth2ClientFacade extends AbstractHttpFacade implements OAuth2ClientFacadeInterface
 {
     const SESSION_CONTEXT_NAMESPACE = 'oauth2';
     
@@ -47,7 +48,10 @@ class OAuth2ClientFacade extends AbstractHttpFacade
     {
         $requestToken = new OAuth2RequestToken($request, $this);
         
-        if ($authProvider = $this->getDataConnection($request)) {
+        $path = $this->getUriPath($request);
+        
+        if ($path) {
+            $authProvider = DataConnectionFactory::createFromModel($this->getWorkbench(), $path);
             $authProvider->authenticate($requestToken);
         } else {
             $session = $this->getOAuthSession();
@@ -75,21 +79,23 @@ class OAuth2ClientFacade extends AbstractHttpFacade
         return new Response(200, ['Location' => $redirect]);
     }
     
-    protected function getDataConnection(ServerRequestInterface $request) : ?DataConnectionInterface
-    {
-        if ($path = $this->getUriPath($request)) {
-            return DataConnectionFactory::createFromModel($this->getWorkbench(), $path);
-        }
-        return null;
-    }
-    
+    /**
+     * 
+     * @param ServerRequestInterface $request
+     * @return string|NULL
+     */
     protected function getUriPath(ServerRequestInterface $request) : ?string
     {
         $uri = $request->getUri()->getPath();
         return trim(StringDataType::substringAfter($uri, $this->buildUrlToFacade(true)), "/");
     }
     
-    public function startOAuthSession(object $initiator, string $redirect, array $vars = []) : OAuth2ClientFacade
+    /**
+     * 
+     * {@inheritDoc}
+     * @see \axenox\OAuth2Connector\Interfaces\OAuth2ClientFacadeInterface::startOAuthSession()
+     */
+    public function startOAuthSession(object $initiator, string $redirect, array $vars = []) : OAuth2ClientFacadeInterface
     {
         switch (true) {
             case $initiator instanceof DataConnectionInterface:
@@ -116,17 +122,32 @@ class OAuth2ClientFacade extends AbstractHttpFacade
         return $this;
     }
     
-    public function stopOAuthSession() : OAuth2ClientFacade
+    /**
+     * 
+     * {@inheritDoc}
+     * @see \axenox\OAuth2Connector\Interfaces\OAuth2ClientFacadeInterface::stopOAuthSession()
+     */
+    public function stopOAuthSession() : OAuth2ClientFacadeInterface
     {
         $this->getWorkbench()->getContext()->getScopeSession()->unsetVariable(self::SESSION_CONTEXT_NAMESPACE);
         return $this;
     }
     
+    /**
+     * 
+     * {@inheritDoc}
+     * @see \axenox\OAuth2Connector\Interfaces\OAuth2ClientFacadeInterface::getOAuthSessionVars()
+     */
     public function getOAuthSessionVars() : array
     {
         return $this->getOAuthSession()['vars'] ?? [];
     }
     
+    /**
+     * 
+     * @throws OAuthSessionNotStartedException
+     * @return array
+     */
     protected function getOAuthSession() : array
     {
         $data = $this->getWorkbench()->getContext()->getScopeSession()->getVariable(self::SESSION_CONTEXT_NAMESPACE);
