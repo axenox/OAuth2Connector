@@ -64,6 +64,13 @@ class OAuth2ClientFacade extends AbstractHttpFacade
                         if ($connection->isOAuthInitiator($requestToken, $sessionData['vars'])) {
                             $authProvider = $connection;
                             $redirect = $sessionData['redirect'];
+                            
+                            try {
+                                $connection->authenticate($requestToken, true, $this->getWorkbench()->getSecurity()->getAuthenticatedUser(), true);
+                            } catch (AuthenticationFailedError $e) {
+                                $this->getWorkbench()->getLogger()->logException($e);
+                            }
+                            
                             break 2;
                         }
                         break;
@@ -79,16 +86,9 @@ class OAuth2ClientFacade extends AbstractHttpFacade
             throw new FacadeRuntimeError('No OAuth2 session found for current request!');
         }
         
-        try {
-            $authProvider->authenticate($requestToken);
-        } catch (AuthenticationFailedError $e) {
-            $this->getWorkbench()->getLogger()->logException($e);
-        }
-        
         $redirect = $redirect ? $redirect : $this->getWorkbench()->getUrl();
-        header('Location: ' . $redirect);
         
-        return new Response();
+        return new Response(200, ['Location' => $redirect]);
     }
     
     protected function getDataConnection(ServerRequestInterface $request) : ?DataConnectionInterface
