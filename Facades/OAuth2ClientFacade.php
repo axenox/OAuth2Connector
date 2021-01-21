@@ -56,13 +56,20 @@ class OAuth2ClientFacade extends AbstractHttpFacade implements OAuth2ClientFacad
         switch (true) {
             case StringDataType::startsWith($path, 'connection'):
                 $authProvider = DataConnectionFactory::createFromModel($this->getWorkbench(), StringDataType::substringAfter($path, 'connection/'));
-                $authProvider->authenticate($requestToken);
-                $redirect = $request->getHeader('referer')[0];
+                if ($user->isAnonymous()) {
+                    throw new RuntimeException('Cannot save OAuth credentials without a user being logged on!');
+                }
+                $refreshedToken = $authProvider->authenticate($requestToken, true, $user, true);
+                if ($refreshedToken) {
+                    $redirect = $request->getHeader('referer')[0];
+                }
                 break;
             case StringDataType::startsWith($path, 'authenticate'):
                 $authProvider = $this->getWorkbench()->getSecurity();
-                $authProvider->authenticate($requestToken);
-                $redirect = $request->getHeader('referer')[0];
+                $refreshedToken = $authProvider->authenticate($requestToken);
+                if ($refreshedToken) {
+                    $redirect = $request->getHeader('referer')[0];
+                }
                 break;
             default:            
                 $session = $this->getOAuthSession();
