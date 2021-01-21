@@ -89,4 +89,14 @@ class OAuth2Authenticator extends AbstractAuthenticator
         }
         return $this;
     }
+    
+    protected function getAuthProvider() : AuthenticationProviderInterface
+    {
+        return $this;
+    }
+    
+    protected function getOAuthClientFacadeRequestUri() : string
+    {
+        return $this->getRedirectUri();
+    }
 }

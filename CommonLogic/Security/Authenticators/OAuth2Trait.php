@@ -38,6 +38,14 @@ trait OAuth2Trait
     
     private $scopes = [];
     
+    protected abstract function getAuthProvider() : AuthenticationProviderInterface;
+    
+    protected abstract function getTokenStored() : ?AccessTokenInterface;
+    
+    protected abstract function getRefreshToken() : ?string;
+    
+    protected abstract function getOAuthClientFacadeRequestUri() : string;
+    
     public function authenticate(AuthenticationTokenInterface $token): AuthenticationTokenInterface
     {
         if (! $token instanceof OAuth2RequestToken) {
@@ -73,7 +81,7 @@ trait OAuth2Trait
                     // If we don't have an authorization code then get one
                     $authUrl = $provider->getAuthorizationUrl($authOptions);
                     $redirectUrl = $request->getHeader('Referer')[0];
-                    $this->getClientFacade()->startOAuthSession(
+                    $this->getOAuthClientFacade()->startOAuthSession(
                         $this->getConnection(),
                         $redirectUrl,
                         [
@@ -205,7 +213,7 @@ trait OAuth2Trait
             'inline' => true,
             'html' => <<<HTML
             
-<a href="{$this->getRedirectUri()}/{$this->getConnection()->getAliasWithNamespace()}" referrerpolicy="unsafe-url">
+<a href="{$this->getOAuthClientFacadeRequestUri()}" referrerpolicy="unsafe-url">
     <span style="float: left">
         <svg width="46px" height="46px" viewBox="0 0 46 46" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:sketch="http://www.bohemiancoding.com/sketch/ns">
            <defs>
@@ -263,10 +271,10 @@ HTML
      *
      * @return OAuth2ClientFacade
      */
-    protected function getClientFacade() : OAuth2ClientFacade
+    protected function getOAuthClientFacade() : OAuth2ClientFacade
     {
         if ($this->clientFacade === null) {
-            $this->clientFacade = FacadeFactory::createFromString(OAuth2ClientFacade::class, $this->getConnection()->getWorkbench());;
+            $this->clientFacade = FacadeFactory::createFromString(OAuth2ClientFacade::class, $this->getWorkbench());;
         }
         return $this->clientFacade;
     }
@@ -277,12 +285,8 @@ HTML
      */
     protected function getRedirectUri() : string
     {
-        return $this->getClientFacade()->buildUrlToFacade(false);
+        return $this->getOAuthClientFacade()->buildUrlToFacade(false);
     }
-    
-    protected abstract function getTokenStored() : ?AccessTokenInterface;
-    
-    protected abstract function getRefreshToken() : ?string;
     
     protected function getUsername(AccessTokenInterface $oauthToken, AbstractProvider $oauthProvider) : ?string
     {

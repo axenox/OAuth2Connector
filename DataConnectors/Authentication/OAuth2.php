@@ -171,7 +171,7 @@ class OAuth2 implements HttpAuthenticationProviderInterface
      * 
      * @return OAuth2ClientFacade
      */
-    protected function getClientFacade() : OAuth2ClientFacade
+    protected function getOAuthClientFacade() : OAuth2ClientFacade
     {
         if ($this->clientFacade === null) {
             $this->clientFacade = FacadeFactory::createFromString(OAuth2ClientFacade::class, $this->getConnection()->getWorkbench());;
@@ -185,7 +185,7 @@ class OAuth2 implements HttpAuthenticationProviderInterface
      */
     protected function getRedirectUrl() : string
     {
-        return $this->getClientFacade()->buildUrlToFacade(false);
+        return $this->getOAuthClientFacade()->buildUrlToFacade(false);
     }
     
     /**
