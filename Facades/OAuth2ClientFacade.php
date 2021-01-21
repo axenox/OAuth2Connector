@@ -77,7 +77,12 @@ class OAuth2ClientFacade extends AbstractHttpFacade implements OAuth2ClientFacad
                 
                 switch ($session['type']) {
                     case self::INITIATOR_TYPE_AUTHENTICATOR:
-                        // TODO
+                        $authProvider = $this->getWorkbench()->getSecurity();
+                        try {
+                            $authProvider->authenticate($requestToken);
+                        } catch (AuthenticationFailedError $e) {
+                            $this->getWorkbench()->getLogger()->logException($e);
+                        }
                         break;
                     case self::INITIATOR_TYPE_CONNECTION:
                         // TODO get the user from the Login action somehow!
