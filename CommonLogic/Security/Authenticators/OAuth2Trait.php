@@ -87,6 +87,7 @@ trait OAuth2Trait
                         [
                             'state' => $provider->getState()
                         ]);
+                    $this->getWorkbench()->stop();
                     header('Location: ' . $authUrl);
                     exit;
                 }
