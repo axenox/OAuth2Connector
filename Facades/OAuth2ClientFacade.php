@@ -49,11 +49,13 @@ class OAuth2ClientFacade extends AbstractHttpFacade implements OAuth2ClientFacad
         $requestToken = new OAuth2RequestToken($request, $this);
         
         $path = $this->getUriPath($request);
+        $user = $this->getWorkbench()->getSecurity()->getAuthenticatedUser();
         
         if ($path) {
             $authProvider = DataConnectionFactory::createFromModel($this->getWorkbench(), $path);
             $authProvider->authenticate($requestToken);
-        } else {
+            $redirect = $request->getHeader('referer')[0];
+        } else {            
             $session = $this->getOAuthSession();
             $redirect = $session['redirect'];
             
@@ -62,9 +64,13 @@ class OAuth2ClientFacade extends AbstractHttpFacade implements OAuth2ClientFacad
                     // TODO
                     break;
                 case self::INITIATOR_TYPE_CONNECTION:
+                    // TODO get the user from the Login action somehow!
+                    if ($user->isAnonymous()) {
+                        throw new RuntimeException('Cannot save OAuth credentials without a user being logged on!');
+                    }
                     $authProvider = DataConnectionFactory::createFromModel($this->getWorkbench(), $session['selector']);
                     try {
-                        $authProvider->authenticate($requestToken, true, $this->getWorkbench()->getSecurity()->getAuthenticatedUser(), true);
+                        $authProvider->authenticate($requestToken, true, $user, true);
                     } catch (AuthenticationFailedError $e) {
                         $this->getWorkbench()->getLogger()->logException($e);
                     }
@@ -74,9 +80,11 @@ class OAuth2ClientFacade extends AbstractHttpFacade implements OAuth2ClientFacad
             }
         }
         
-        $redirect = $redirect ? $redirect : $this->getWorkbench()->getUrl();
-        
-        return new Response(200, ['Location' => $redirect]);
+        if ($redirect) {
+            return new Response(200, ['Location' => $redirect]);
+        } else {
+            return new Response(500, [], 'ERROR: cannot determine redirect URL!');
+        }
     }
     
     /**
