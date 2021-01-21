@@ -4,6 +4,21 @@
 		"exface/core" : "^1.0",
 		"league/oauth2-client" : "^2.6"
 	},
+	"license" : [
+		"GPL-3.0+",
+		"proprietary"
+	],
+	"authors" : [{
+			"name" : "Andrej Kabachnik",
+			"email" : "kabachnik@gmail.com",
+			"role" : "Creator"
+		}
+	],
+	"support" : {
+		"source" : "https://github.com/axenox/OAuth2Connector",
+		"docs" : "https://github.com/axenox/OAuth2Connector/blob/master/Docs",
+		"issues" : "https://github.com/axenox/OAuth2Connector/issues"
+	},
 	"autoload" : {
 		"psr-4" : {
 			"\\axenox\\OAuth2Connector\\" : ""
