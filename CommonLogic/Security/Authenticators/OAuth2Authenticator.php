@@ -32,7 +32,9 @@ class OAuth2Authenticator extends AbstractAuthenticator
         if ($this->userExists($token) === true) {
             $user = $this->getUserFromToken($token);
         } elseif ($this->getCreateNewUsers() === true) {
-            $user = $this->createUserWithRoles($this->getWorkbench(), $token);
+            // We got an access token, let's now get the owner details
+            $ownerDetails = $this->getOAuthProvider()->getResourceOwner($token->getAccessToken());
+            $user = $this->createUserWithRoles($this->getWorkbench(), $token, $ownerDetails->getLastName(), $ownerDetails->getFirstName());
         } else {
             throw new AuthenticationFailedError($this, "Authentication failed, no PowerUI user with that username '{$token->getUsername()}' exists and none was created!", '7AL3J9X');
         }
