@@ -1,40 +1,41 @@
 {
-	"name" : "axenox/oauth2connector",
-	"require" : {
-		"exface/core" : "^1.0",
-		"league/oauth2-client" : "^2.6"
-	},
-	"license" : [
-		"GPL-3.0+",
-		"proprietary"
-	],
-	"authors" : [{
-			"name" : "Andrej Kabachnik",
-			"email" : "kabachnik@gmail.com",
-			"role" : "Creator"
-		}
-	],
-	"support" : {
-		"source" : "https://github.com/axenox/OAuth2Connector",
-		"docs" : "https://github.com/axenox/OAuth2Connector/blob/master/Docs",
-		"issues" : "https://github.com/axenox/OAuth2Connector/issues"
-	},
-	"autoload" : {
-		"psr-4" : {
-			"\\axenox\\OAuth2Connector\\" : ""
-		},
-		"exclude-from-classmap" : [
-			"/Config/",
-			"/Translations/",
-			"/Model/"
-		]
-	},
-	"extra" : {
-		"app" : {
-			"app_uid" : "0x11ebb9fe152517a0b9fe847beb4a5184",
-			"app_alias" : "axenox.OAuth2Connector",
-			"model_md5" : "72755b246663e40cd9670879f1fa77de",
-			"model_timestamp" : "2021-01-19 12:25:49"
-		}
-	}
+    "name": "axenox/oauth2connector",
+    "require": {
+        "exface/core": "^1.0",
+        "league/oauth2-client": "^2.6"
+    },
+    "license": [
+        "GPL-3.0+",
+        "proprietary"
+    ],
+    "authors": [
+        {
+            "name": "Andrej Kabachnik",
+            "email": "kabachnik@gmail.com",
+            "role": "Creator"
+        }
+    ],
+    "support": {
+        "source": "https://github.com/axenox/OAuth2Connector",
+        "docs": "https://github.com/axenox/OAuth2Connector/blob/master/Docs",
+        "issues": "https://github.com/axenox/OAuth2Connector/issues"
+    },
+    "autoload": {
+        "psr-4": {
+            "\\axenox\\OAuth2Connector\\": ""
+        },
+        "exclude-from-classmap": [
+            "/Config/",
+            "/Translations/",
+            "/Model/"
+        ]
+    },
+    "extra": {
+        "app": {
+            "app_uid": "0x11ebb9fe152517a0b9fe847beb4a5184",
+            "app_alias": "axenox.OAuth2Connector",
+            "model_md5": "72755b246663e40cd9670879f1fa77de",
+            "model_timestamp": "2021-01-21 18:12:16"
+        }
+    }
 }
