@@ -11,7 +11,6 @@ use exface\Core\DataTypes\EncryptedDataType;
 use League\OAuth2\Client\Token\AccessToken;
 use exface\Core\CommonLogic\Security\Authenticators\Traits\CreateUserFromTokenTrait;
 use exface\Core\Interfaces\Security\AuthenticationProviderInterface;
-use exface\Core\CommonLogic\Security\AuthenticationToken\RememberMeAuthToken;
 
 class OAuth2Authenticator extends AbstractAuthenticator
 {
@@ -27,14 +26,6 @@ class OAuth2Authenticator extends AbstractAuthenticator
      */
     public function authenticate(AuthenticationTokenInterface $token) : AuthenticationTokenInterface
     {
-        if ($token instanceof RememberMeAuthToken) {
-            if ($storedToken = $this->getTokenStored()) {
-                $token = $storedToken;
-            } else {
-                throw new AuthenticationFailedError($this, 'No stored OAuth token found: Please sign in!');
-            }
-        }
-        
         $token = $this->exchangeOAuthToken($token);
         
         $user = null;
@@ -81,9 +72,7 @@ class OAuth2Authenticator extends AbstractAuthenticator
      */
     public function isSupported(AuthenticationTokenInterface $token): bool
     {
-        return $token instanceof OAuth2RequestToken 
-        || $token instanceof OAuth2AccessToken 
-        || ($token instanceof RememberMeAuthToken && $this->getTokenStored());
+        return $token instanceof OAuth2RequestToken || $token instanceof OAuth2AccessToken;
     }
     
     /**
@@ -118,7 +107,7 @@ class OAuth2Authenticator extends AbstractAuthenticator
     
     /**
      * {@inheritDoc}
-     * @see OAuth2Trait::getAuthProvider()
+     * @see OAuth2Trait::storeToken()
      */
     protected function storeToken(AccessTokenInterface $token) : OAuth2Authenticator
     {
@@ -150,6 +139,12 @@ class OAuth2Authenticator extends AbstractAuthenticator
      */
     public function getTokenLifetime(AuthenticationTokenInterface $token) : ?int
     {
-        return 0;
+        if ($token instanceof OAuth2AccessToken) {
+            if ($expires = $token->getAccessToken()->getExpires()) {
+                $lifetime = $expires - time();
+                return max([$lifetime, 0]);
+            }
+        }
+        return null;
     }
 }
