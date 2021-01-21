@@ -15,6 +15,8 @@ use exface\Core\Exceptions\RuntimeException;
 use exface\Core\Exceptions\Security\AuthenticationFailedError;
 use axenox\OAuth2Connector\Exceptions\OAuthSessionNotStartedException;
 use axenox\OAuth2Connector\Interfaces\OAuth2ClientFacadeInterface;
+use exface\Core\Interfaces\Security\AuthenticationProviderInterface;
+use exface\UrlDataConnector\Interfaces\HttpAuthenticationProviderInterface;
 
 /**
  * 
@@ -51,33 +53,40 @@ class OAuth2ClientFacade extends AbstractHttpFacade implements OAuth2ClientFacad
         $path = $this->getUriPath($request);
         $user = $this->getWorkbench()->getSecurity()->getAuthenticatedUser();
         
-        if ($path) {
-            $authProvider = DataConnectionFactory::createFromModel($this->getWorkbench(), $path);
-            $authProvider->authenticate($requestToken);
-            $redirect = $request->getHeader('referer')[0];
-        } else {            
-            $session = $this->getOAuthSession();
-            $redirect = $session['redirect'];
-            
-            switch ($session['type']) {
-                case self::INITIATOR_TYPE_AUTHENTICATOR:
-                    // TODO
-                    break;
-                case self::INITIATOR_TYPE_CONNECTION:
-                    // TODO get the user from the Login action somehow!
-                    if ($user->isAnonymous()) {
-                        throw new RuntimeException('Cannot save OAuth credentials without a user being logged on!');
-                    }
-                    $authProvider = DataConnectionFactory::createFromModel($this->getWorkbench(), $session['selector']);
-                    try {
-                        $authProvider->authenticate($requestToken, true, $user, true);
-                    } catch (AuthenticationFailedError $e) {
-                        $this->getWorkbench()->getLogger()->logException($e);
-                    }
-                    break;
-                default:
-                    throw new RuntimeException('Invalid OAuth2 session type "' . $session['type'] . '"!');
-            }
+        switch (true) {
+            case StringDataType::startsWith($path, 'connection'):
+                $authProvider = DataConnectionFactory::createFromModel($this->getWorkbench(), StringDataType::substringAfter($path, 'connection/'));
+                $authProvider->authenticate($requestToken);
+                $redirect = $request->getHeader('referer')[0];
+                break;
+            case StringDataType::startsWith($path, 'authenticate'):
+                $authProvider = $this->getWorkbench()->getSecurity();
+                $authProvider->authenticate($requestToken);
+                $redirect = $request->getHeader('referer')[0];
+                break;
+            default:            
+                $session = $this->getOAuthSession();
+                $redirect = $session['redirect'];
+                
+                switch ($session['type']) {
+                    case self::INITIATOR_TYPE_AUTHENTICATOR:
+                        // TODO
+                        break;
+                    case self::INITIATOR_TYPE_CONNECTION:
+                        // TODO get the user from the Login action somehow!
+                        if ($user->isAnonymous()) {
+                            throw new RuntimeException('Cannot save OAuth credentials without a user being logged on!');
+                        }
+                        $authProvider = DataConnectionFactory::createFromModel($this->getWorkbench(), $session['selector']);
+                        try {
+                            $authProvider->authenticate($requestToken, true, $user, true);
+                        } catch (AuthenticationFailedError $e) {
+                            $this->getWorkbench()->getLogger()->logException($e);
+                        }
+                        break;
+                    default:
+                        throw new RuntimeException('Invalid OAuth2 session type "' . $session['type'] . '"!');
+                }
         }
         
         if ($redirect) {
@@ -112,7 +121,7 @@ class OAuth2ClientFacade extends AbstractHttpFacade implements OAuth2ClientFacad
                 break;
             case $initiator instanceof AuthenticatorInterface:
                 $type = self::INITIATOR_TYPE_AUTHENTICATOR;
-                $selector = get_class($selector);
+                $selector = get_class($initiator);
                 break;
             default:
                 throw new InvalidArgumentException('Cannot use ' . get_class($initiator) . ' as initiator of an OAuth2 session: only data connections or authenticators allowed!');
@@ -163,5 +172,20 @@ class OAuth2ClientFacade extends AbstractHttpFacade implements OAuth2ClientFacad
             throw new OAuthSessionNotStartedException('Cannot get OAuth2 session: no session was started!');
         }
         return $data;
+    }
+    
+    public function buildUrlForProvider(AuthenticationProviderInterface $provider, $relativeToSiteRoot = true) : string
+    {
+        $base = $this->buildUrlToFacade(! $relativeToSiteRoot);
+        switch (true) {
+            case $provider instanceof DataConnectionInterface:
+                $path = '/connection/' . $provider->getAliasWithNamespace();
+            case $provider instanceof HttpAuthenticationProviderInterface:
+                $path = '/connection/' . $provider->getConnection()->getAliasWithNamespace();
+            case $provider instanceof AuthenticatorInterface:
+                $path = '/authenticate';
+        }
+        
+        return $base . $path;
     }
 }

@@ -9,18 +9,33 @@ use exface\Core\Exceptions\Security\AuthenticationFailedError;
 use axenox\OAuth2Connector\CommonLogic\Security\AuthenticationToken\OAuth2AccessToken;
 use exface\Core\DataTypes\EncryptedDataType;
 use League\OAuth2\Client\Token\AccessToken;
+use exface\Core\CommonLogic\Security\Authenticators\Traits\CreateUserFromTokenTrait;
+use exface\Core\Interfaces\Security\AuthenticationProviderInterface;
+use exface\Core\CommonLogic\Security\AuthenticationToken\RememberMeAuthToken;
 
 class OAuth2Authenticator extends AbstractAuthenticator
 {
-    use OAuth2Trait {
-        authenticate as authenticateViaTrait;
-    }
+    use OAuth2Trait;
+    use CreateUserFromTokenTrait;
     
     private $authenticatedToken = null;
     
+    /**
+     * 
+     * {@inheritDoc}
+     * @see \exface\Core\Interfaces\Security\AuthenticationProviderInterface::authenticate()
+     */
     public function authenticate(AuthenticationTokenInterface $token) : AuthenticationTokenInterface
     {
-        $token = $this->authenticateViaTrait($token);
+        if ($token instanceof RememberMeAuthToken) {
+            if ($storedToken = $this->getTokenStored()) {
+                $token = $storedToken;
+            } else {
+                throw new AuthenticationFailedError($this, 'No stored OAuth token found: Please sign in!');
+            }
+        }
+        
+        $token = $this->exchangeOAuthToken($token);
         
         $user = null;
         if ($this->userExists($token) === true) {
@@ -39,21 +54,42 @@ class OAuth2Authenticator extends AbstractAuthenticator
         return $token;
     }
 
+    /**
+     * 
+     * {@inheritDoc}
+     * @see \exface\Core\CommonLogic\Security\Authenticators\AbstractAuthenticator::getNameDefault()
+     */
     protected function getNameDefault(): string
     {
         return 'OAuth2';
     }
 
+    /**
+     * 
+     * {@inheritDoc}
+     * @see \exface\Core\Interfaces\Security\AuthenticatorInterface::isAuthenticated()
+     */
     public function isAuthenticated(AuthenticationTokenInterface $token): bool
     {
-        return $token === $this->authenticatedToken;
+        return $token === $this->authenticatedToken; 
     }
 
+    /**
+     * 
+     * {@inheritDoc}
+     * @see \exface\Core\Interfaces\Security\AuthenticatorInterface::isSupported()
+     */
     public function isSupported(AuthenticationTokenInterface $token): bool
     {
-        return $token instanceof OAuth2RequestToken;
+        return $token instanceof OAuth2RequestToken 
+        || $token instanceof OAuth2AccessToken 
+        || ($token instanceof RememberMeAuthToken && $this->getTokenStored());
     }
     
+    /**
+     * {@inheritDoc}
+     * @see OAuth2Trait::getTokenStored()
+     */
     protected function getTokenStored(): ?AccessTokenInterface
     {
         $encrypted = $this->getWorkbench()->getContext()->getScopeSession()->getVariable('token', $this->getId());
@@ -66,6 +102,10 @@ class OAuth2Authenticator extends AbstractAuthenticator
         }
     }
 
+    /**
+     * {@inheritDoc}
+     * @see OAuth2Trait::getRefreshToken()
+     */
     protected function getRefreshToken(): ?string
     {
         $encrypted = $this->getWorkbench()->getContext()->getScopeSession()->getVariable('refresh', $this->getId());
@@ -76,6 +116,10 @@ class OAuth2Authenticator extends AbstractAuthenticator
         }
     }
     
+    /**
+     * {@inheritDoc}
+     * @see OAuth2Trait::getAuthProvider()
+     */
     protected function storeToken(AccessTokenInterface $token) : OAuth2Authenticator
     {
         $session = $this->getWorkbench()->getContext()->getScopeSession();
@@ -90,13 +134,22 @@ class OAuth2Authenticator extends AbstractAuthenticator
         return $this;
     }
     
+    /**
+     * {@inheritDoc}
+     * @see OAuth2Trait::getAuthProvider()
+     */
     protected function getAuthProvider() : AuthenticationProviderInterface
     {
         return $this;
     }
     
-    protected function getOAuthClientFacadeRequestUri() : string
+    /**
+     * 
+     * {@inheritDoc}
+     * @see \exface\Core\CommonLogic\Security\Authenticators\AbstractAuthenticator::getTokenLifetime()
+     */
+    public function getTokenLifetime(AuthenticationTokenInterface $token) : ?int
     {
-        return $this->getRedirectUri();
+        return 0;
     }
 }

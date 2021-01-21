@@ -2,6 +2,7 @@
 namespace axenox\OAuth2Connector\Interfaces;
 
 use exface\Core\Interfaces\Facades\HttpFacadeInterface;
+use exface\Core\Interfaces\Security\AuthenticationProviderInterface;
 
 /**
  * 
@@ -30,4 +31,6 @@ interface OAuth2ClientFacadeInterface extends HttpFacadeInterface
      * @return array
      */
     public function getOAuthSessionVars() : array;
+    
+    public function buildUrlForProvider(AuthenticationProviderInterface $provider) : string;
 }
