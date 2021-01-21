@@ -180,10 +180,13 @@ class OAuth2ClientFacade extends AbstractHttpFacade implements OAuth2ClientFacad
         switch (true) {
             case $provider instanceof DataConnectionInterface:
                 $path = '/connection/' . $provider->getAliasWithNamespace();
+                break;
             case $provider instanceof HttpAuthenticationProviderInterface:
                 $path = '/connection/' . $provider->getConnection()->getAliasWithNamespace();
+                break;
             case $provider instanceof AuthenticatorInterface:
                 $path = '/authenticate';
+                break;
         }
         
         return $base . $path;
