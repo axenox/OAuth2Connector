@@ -6,7 +6,7 @@ use exface\Core\Interfaces\Security\AuthenticationTokenInterface;
 use League\OAuth2\Client\Token\AccessTokenInterface;
 use exface\Core\Interfaces\Facades\HttpFacadeInterface;
 
-class OAuth2AccessToken implements AuthenticationTokenInterface
+class OAuth2AuthenticatedToken implements AuthenticationTokenInterface
 {
     private $facade = null;
     

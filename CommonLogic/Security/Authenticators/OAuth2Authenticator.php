@@ -6,7 +6,7 @@ use exface\Core\Interfaces\Security\AuthenticationTokenInterface;
 use League\OAuth2\Client\Token\AccessTokenInterface;
 use axenox\OAuth2Connector\CommonLogic\Security\AuthenticationToken\OAuth2RequestToken;
 use exface\Core\Exceptions\Security\AuthenticationFailedError;
-use axenox\OAuth2Connector\CommonLogic\Security\AuthenticationToken\OAuth2AccessToken;
+use axenox\OAuth2Connector\CommonLogic\Security\AuthenticationToken\OAuth2AuthenticatedToken;
 use exface\Core\DataTypes\EncryptedDataType;
 use League\OAuth2\Client\Token\AccessToken;
 use exface\Core\CommonLogic\Security\Authenticators\Traits\CreateUserFromTokenTrait;
@@ -40,7 +40,7 @@ class OAuth2Authenticator extends AbstractAuthenticator
         }
         $this->logSuccessfulAuthentication($user, $token->getUsername());
         if ($token->getUsername() !== $user->getUsername()) {
-            return new OAuth2AccessToken($user->getUsername(), $token->getAccessToken(), $token->getFacade());
+            return new OAuth2AuthenticatedToken($user->getUsername(), $token->getAccessToken(), $token->getFacade());
         }
         $this->authenticatedToken = $token;
         $this->storeToken($token->getAccessToken());
@@ -74,7 +74,7 @@ class OAuth2Authenticator extends AbstractAuthenticator
      */
     public function isSupported(AuthenticationTokenInterface $token): bool
     {
-        return $token instanceof OAuth2RequestToken || $token instanceof OAuth2AccessToken;
+        return $token instanceof OAuth2RequestToken || $token instanceof OAuth2AuthenticatedToken;
     }
     
     /**
@@ -97,7 +97,7 @@ class OAuth2Authenticator extends AbstractAuthenticator
      * {@inheritDoc}
      * @see OAuth2Trait::getRefreshToken()
      */
-    protected function getRefreshToken(): ?string
+    protected function getRefreshToken(AccessTokenInterface $authenticatedToken): ?string
     {
         $encrypted = $this->getWorkbench()->getContext()->getScopeSession()->getVariable('refresh', $this->getId());
         try {
@@ -141,7 +141,7 @@ class OAuth2Authenticator extends AbstractAuthenticator
      */
     public function getTokenLifetime(AuthenticationTokenInterface $token) : ?int
     {
-        if ($token instanceof OAuth2AccessToken) {
+        if ($token instanceof OAuth2AuthenticatedToken) {
             if ($expires = $token->getAccessToken()->getExpires()) {
                 $lifetime = $expires - time();
                 return max([$lifetime, 0]);

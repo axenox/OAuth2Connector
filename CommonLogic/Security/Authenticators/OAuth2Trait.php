@@ -5,7 +5,7 @@ use exface\Core\CommonLogic\UxonObject;
 use exface\Core\Interfaces\Widgets\iContainOtherWidgets;
 use axenox\OAuth2Connector\Facades\OAuth2ClientFacade;
 use exface\Core\Factories\FacadeFactory;
-use axenox\OAuth2Connector\CommonLogic\Security\AuthenticationToken\OAuth2AccessToken;
+use axenox\OAuth2Connector\CommonLogic\Security\AuthenticationToken\OAuth2AuthenticatedToken;
 use League\OAuth2\Client\Token\AccessTokenInterface;
 use exface\Core\Factories\WidgetFactory;
 use exface\Core\Exceptions\Security\AuthenticationFailedError;
@@ -40,11 +40,11 @@ trait OAuth2Trait
     
     protected abstract function getTokenStored() : ?AccessTokenInterface;
     
-    protected abstract function getRefreshToken() : ?string;
+    protected abstract function getRefreshToken(AccessTokenInterface $authenticatedToken) : ?string;
     
-    protected function exchangeOAuthToken(AuthenticationTokenInterface $token) : OAuth2AccessToken
+    protected function exchangeOAuthToken(AuthenticationTokenInterface $token) : OAuth2AuthenticatedToken
     {
-        if ($token instanceof OAuth2AccessToken) {
+        if ($token instanceof OAuth2AuthenticatedToken) {
             if ($token->getAccessToken()->hasExpired()) {
                 throw new AuthenticationFailedError($this->getAuthProvider(), 'OAuth token expired: Please sign in again!');
             } else {
@@ -72,11 +72,11 @@ trait OAuth2Trait
                 if ($oauthToken) {
                     $expired = $oauthToken->hasExpired();
                     if ($expired) {
-                        if (! $this->getRefreshToken()) {
+                        if (! $this->getRefreshToken($oauthToken)) {
                             $authOptions = ['prompt' => 'consent'];
                         } else {
                             $oauthToken = $provider->getAccessToken('refresh_token', [
-                                'refresh_token' => $this->getRefreshToken()
+                                'refresh_token' => $this->getRefreshToken($oauthToken)
                             ]);
                         }
                     }
@@ -124,7 +124,7 @@ trait OAuth2Trait
         
         $clientFacade->stopOAuthSession();
         if ($oauthToken) {
-            return new OAuth2AccessToken($this->getUsername($oauthToken, $provider), $oauthToken, $token->getFacade());
+            return new OAuth2AuthenticatedToken($this->getUsername($oauthToken, $provider), $oauthToken, $token->getFacade());
         }
         
         throw new AuthenticationFailedError($this->getConnection(), 'Please sign in first!');
@@ -326,6 +326,31 @@ HTML
     protected function setUrlResourceOwnerDetails(string $value) : AuthenticationProviderInterface
     {
         $this->urlResourceOwnerDetails = $value;
+        return $this;
+    }
+    
+    /**
+     * 
+     * @return string[]
+     */
+    protected function getScopes() : array
+    {
+        return $this->scopes;
+    }
+    
+    /**
+     * The scopes to require
+     * 
+     * @uxon-property scopes
+     * @uxon-type array
+     * @uxon-template [""]
+     * 
+     * @param string[] $scopes
+     * @return AuthenticationProviderInterface
+     */
+    protected function setScopes(array $scopes) : AuthenticationProviderInterface
+    {
+        $this->scopes = $scopes;
         return $this;
     }
 }
