@@ -18,7 +18,7 @@ interface OAuth2ClientFacadeInterface extends HttpFacadeInterface
      * @param array $vars
      * @return OAuth2ClientFacadeInterface
      */
-    public function startOAuthSession(object $initiator, string $redirect, array $vars = []) : OAuth2ClientFacadeInterface;
+    public function startOAuthSession(object $initiator, string $providerHash, string $redirect, array $vars = []) : OAuth2ClientFacadeInterface;
     
     /**
      * 
@@ -32,5 +32,5 @@ interface OAuth2ClientFacadeInterface extends HttpFacadeInterface
      */
     public function getOAuthSessionVars() : array;
     
-    public function buildUrlForProvider(AuthenticationProviderInterface $provider) : string;
+    public function buildUrlForProvider(AuthenticationProviderInterface $provider, string $hash) : string;
 }

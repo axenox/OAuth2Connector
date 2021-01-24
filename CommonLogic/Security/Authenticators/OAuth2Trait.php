@@ -56,6 +56,10 @@ trait OAuth2Trait
             throw new RuntimeException('Cannot use "' . get_class($token) . '" as OAuth token!');
         }
         
+        if ($token->getOAuthProviderHash() !== $this->getOAuthProviderHash()) {
+            throw new AuthenticationFailedError($this->getAuthProvider(), 'OAuth token does not match the provider (hash mismatch)!');
+        }
+        
         $clientFacade = $this->getOAuthClientFacade();
         $request = $token->getRequest();
         $requestParams = $request->getQueryParams();
@@ -87,6 +91,7 @@ trait OAuth2Trait
                     $redirectUrl = $request->getHeader('Referer')[0];
                     $clientFacade->startOAuthSession(
                         $this->getConnection(),
+                        $this->getOAuthProviderHash(),
                         $redirectUrl,
                         [
                             'state' => $provider->getState()
@@ -218,7 +223,7 @@ trait OAuth2Trait
             'inline' => true,
             'html' => <<<HTML
             
-<a href="{$this->getOAuthClientFacade()->buildUrlForProvider($this)}" referrerpolicy="unsafe-url">
+<a href="{$this->getOAuthClientFacade()->buildUrlForProvider($this, $this->getOAuthProviderHash())}" referrerpolicy="unsafe-url">
     <span style="float: left">
         <i style="padding: 3px 8px 3px 8px; font-size: 40px; color: gray" class="fa fa-key"></i>
     </span>
@@ -352,5 +357,10 @@ HTML
     {
         $this->scopes = $scopes;
         return $this;
+    }
+    
+    protected function getOAuthProviderHash() : string
+    {
+        return md5($this->getClientId() . $this->getUrlAuthorize());
     }
 }

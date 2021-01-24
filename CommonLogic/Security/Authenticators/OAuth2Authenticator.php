@@ -74,7 +74,7 @@ class OAuth2Authenticator extends AbstractAuthenticator
      */
     public function isSupported(AuthenticationTokenInterface $token): bool
     {
-        return $token instanceof OAuth2RequestToken || $token instanceof OAuth2AuthenticatedToken;
+        return ($token instanceof OAuth2RequestToken && $token->getOAuthProviderHash() === $this->getOAuthProviderHash()) || $token instanceof OAuth2AuthenticatedToken;
     }
     
     /**

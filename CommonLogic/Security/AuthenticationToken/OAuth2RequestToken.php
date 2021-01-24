@@ -12,14 +12,17 @@ class OAuth2RequestToken implements AuthenticationTokenInterface
     
     private $request = null;
     
+    private $providerHash = null;
+    
     /**
      * 
      * @param HttpFacadeInterface $facade
      */
-    public function __construct(ServerRequestInterface $request, HttpFacadeInterface $facade = null)
+    public function __construct(ServerRequestInterface $request, string $providerHash, HttpFacadeInterface $facade = null)
     {
         $this->facade = $facade;
         $this->request = $request;
+        $this->providerHash = $providerHash;
     }
     
     public function isAnonymous(): bool
@@ -40,5 +43,10 @@ class OAuth2RequestToken implements AuthenticationTokenInterface
     public function getRequest() : ServerRequestInterface
     {
         return $this->request;
+    }
+    
+    public function getOAuthProviderHash() : string
+    {
+        return $this->providerHash;
     }
 }

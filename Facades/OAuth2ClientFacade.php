@@ -48,13 +48,12 @@ class OAuth2ClientFacade extends AbstractHttpFacade implements OAuth2ClientFacad
      */
     public function handle(ServerRequestInterface $request) : ResponseInterface
     {
-        $requestToken = new OAuth2RequestToken($request, $this);
-        
         $path = $this->getUriPath($request);
         $user = $this->getWorkbench()->getSecurity()->getAuthenticatedUser();
         
         switch (true) {
             case StringDataType::startsWith($path, 'connection'):
+                $requestToken = new OAuth2RequestToken($request, ($request->getQueryParams()['hash'] ?? ''), $this);
                 $authProvider = DataConnectionFactory::createFromModel($this->getWorkbench(), StringDataType::substringAfter($path, 'connection/'));
                 if ($user->isAnonymous()) {
                     throw new RuntimeException('Cannot save OAuth credentials without a user being logged on!');
@@ -65,6 +64,7 @@ class OAuth2ClientFacade extends AbstractHttpFacade implements OAuth2ClientFacad
                 }
                 break;
             case StringDataType::startsWith($path, 'authenticate'):
+                $requestToken = new OAuth2RequestToken($request, ($request->getQueryParams()['hash'] ?? ''), $this);
                 $authProvider = $this->getWorkbench()->getSecurity();
                 $refreshedToken = $authProvider->authenticate($requestToken);
                 if ($refreshedToken) {
@@ -74,6 +74,7 @@ class OAuth2ClientFacade extends AbstractHttpFacade implements OAuth2ClientFacad
             default:            
                 $session = $this->getOAuthSession();
                 $redirect = $session['redirect'];
+                $requestToken = new OAuth2RequestToken($request, ($session['hash'] ?? ''), $this);
                 
                 switch ($session['type']) {
                     case self::INITIATOR_TYPE_AUTHENTICATOR:
@@ -124,7 +125,7 @@ class OAuth2ClientFacade extends AbstractHttpFacade implements OAuth2ClientFacad
      * {@inheritDoc}
      * @see \axenox\OAuth2Connector\Interfaces\OAuth2ClientFacadeInterface::startOAuthSession()
      */
-    public function startOAuthSession(object $initiator, string $redirect, array $vars = []) : OAuth2ClientFacadeInterface
+    public function startOAuthSession(object $initiator, string $providerHash, string $redirect, array $vars = []) : OAuth2ClientFacadeInterface
     {
         switch (true) {
             case $initiator instanceof DataConnectionInterface:
@@ -145,6 +146,7 @@ class OAuth2ClientFacade extends AbstractHttpFacade implements OAuth2ClientFacad
             'class' => $class,
             'selector' => $selector,
             'redirect' => $redirect,
+            'hash' => $providerHash,
             'vars' => $vars
         ]);
         
@@ -186,18 +188,18 @@ class OAuth2ClientFacade extends AbstractHttpFacade implements OAuth2ClientFacad
         return $data;
     }
     
-    public function buildUrlForProvider(AuthenticationProviderInterface $provider, $relativeToSiteRoot = true) : string
+    public function buildUrlForProvider(AuthenticationProviderInterface $provider, string $hash, $relativeToSiteRoot = true) : string
     {
         $base = $this->buildUrlToFacade(! $relativeToSiteRoot);
         switch (true) {
             case $provider instanceof DataConnectionInterface:
-                $path = '/connection/' . $provider->getAliasWithNamespace();
+                $path = '/connection/' . $provider->getAliasWithNamespace() . '?hash=' . $hash;
                 break;
             case $provider instanceof HttpAuthenticationProviderInterface:
-                $path = '/connection/' . $provider->getConnection()->getAliasWithNamespace();
+                $path = '/connection/' . $provider->getConnection()->getAliasWithNamespace() . '?hash=' . $hash;
                 break;
             case $provider instanceof AuthenticatorInterface:
-                $path = '/authenticate';
+                $path = '/authenticate' . '?hash=' . $hash;
                 break;
         }
         
