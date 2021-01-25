@@ -31,10 +31,8 @@ class OAuth2Authenticator extends AbstractAuthenticator
         $user = null;
         if ($this->userExists($token) === true) {
             $user = $this->getUserFromToken($token);
-        } elseif ($this->getCreateNewUsers() === true) {
-            // We got an access token, let's now get the owner details
-            $ownerDetails = $this->getOAuthProvider()->getResourceOwner($token->getAccessToken());
-            $user = $this->createUserWithRoles($this->getWorkbench(), $token, $ownerDetails->getLastName(), $ownerDetails->getFirstName());
+        } elseif ($this->getCreateNewUsers(true) === true) {
+            $user = $this->createUserWithRoles($this->getWorkbench(), $token, $this->getNewUserData($token->getAccessToken()));
         } else {
             throw new AuthenticationFailedError($this, "Authentication failed, no PowerUI user with that username '{$token->getUsername()}' exists and none was created!", '7AL3J9X');
         }
@@ -45,6 +43,21 @@ class OAuth2Authenticator extends AbstractAuthenticator
         $this->authenticatedToken = $token;
         $this->storeToken($token->getAccessToken());
         return $token;
+    }
+    
+    /**
+     * Returns an array of attribute values for the object `exface.Core.USER` that can be set from
+     * the given token.
+     * 
+     * Override this method to implement ways to get `FIRST_NAME`, `LAST_NAME`, `EMAIL` etc. from
+     * the OAuth resource owner details.
+     * 
+     * @param AccessTokenInterface $token
+     * @return array
+     */
+    protected function getNewUserData(AccessTokenInterface $token) : array
+    {
+        return [];        
     }
 
     /**
@@ -148,5 +161,38 @@ class OAuth2Authenticator extends AbstractAuthenticator
             }
         }
         return null;
+    }
+    
+    protected function explodeName(string $fullName) : array
+    {
+        $firstName = '';
+        $lastName = '';
+        $names = explode(' ', $fullName);
+        if (count($names) === 2) {
+            $firstName = $names[0];
+            $lastName = $names[1];
+        } else {
+            $lastName = array_pop($names);
+            $middleName = array_pop($names);
+            $firstName = implode(' ', $names);
+            switch (true) {
+                // Max M. Mustermann
+                case strlen($middleName) === 2 && substr($middleName, 1) === '.':
+                    $firstName .= ' ' . $middleName;
+                    break;
+                    // Max Mustermann Jr
+                case strlen($lastName) <= 2:
+                    $lastName = $middleName . ' ' . $lastName;
+                    break;
+                default:
+                    $firstName .= ' ' . $middleName;
+                    break;
+            }
+        }
+        
+        return [
+            $firstName,
+            $lastName
+        ];
     }
 }

@@ -37,6 +37,8 @@ trait OAuth2Trait
     
     private $scopes = [];
     
+    private $usernameResourceOwnerField = null;
+    
     protected abstract function getAuthProvider() : AuthenticationProviderInterface;
     
     protected abstract function getTokenStored() : ?AccessTokenInterface;
@@ -258,10 +260,18 @@ HTML
         return $this->getOAuthClientFacade()->buildUrlToFacade(false);
     }
     
-    protected function getUsername(AccessTokenInterface $oauthToken, AbstractProvider $oauthProvider) : ?string
+    /**
+     * 
+     * @param AccessTokenInterface $oauthToken
+     * @return string|NULL
+     */
+    protected function getUsername(AccessTokenInterface $oauthToken) : ?string
     {
-        $ownerDetails = $oauthProvider->getResourceOwner($oauthToken);
-        return $ownerDetails->getEmail();
+        $ownerDetails = $this->getOAuthProvider()->getResourceOwner($oauthToken);
+        if (($field = $this->getUsernameResourceOwnerField()) !== null) {
+            return $ownerDetails->toArray()[$field];
+        }
+        return $ownerDetails->getId();
     }
     
     /**
@@ -372,5 +382,37 @@ HTML
     protected function getOAuthProviderHash() : string
     {
         return md5($this->getClientId() . $this->getUrlAuthorize());
+    }
+    
+    /**
+     * 
+     * @return string|NULL
+     */
+    protected function getUsernameResourceOwnerField() : ?string
+    {
+        return $this->usernameResourceOwnerField;
+    }
+    
+    /**
+     * The field name in resource owner details, that contains the username.
+     * 
+     * Each authenticated token needs to have a username in the workbench. This property allows
+     * to specify, which field of the resource owner details supplied by the OAuth provider is
+     * to be used as username. Most providers include the `email` in the owner details, so that's
+     * a good for a start.
+     * 
+     * If not set, the id of the resource owner will be used! This is technically OK, but very
+     * cryptic, so it's a good idea to set a `username_resource_owner_field` explicitly.
+     * 
+     * @uxon-property username_resource_owner_field
+     * @uxon-type string
+     * 
+     * @param string $fieldName
+     * @return AuthenticationProviderInterface
+     */
+    protected function setUsernameResourceOwnerField(string $fieldName) : AuthenticationProviderInterface
+    {
+        $this->usernameResourceOwnerField = $fieldName;
+        return $this;
     }
 }
