@@ -17,6 +17,7 @@ use exface\Core\Interfaces\Security\AuthenticationProviderInterface;
 use League\OAuth2\Client\Provider\GenericProvider;
 use exface\Core\Exceptions\RuntimeException;
 use exface\Core\Interfaces\Security\AuthenticationTokenInterface;
+use exface\Core\Exceptions\InvalidArgumentException;
 
 trait OAuth2Trait
 {    
@@ -350,12 +351,21 @@ HTML
      * @uxon-type array
      * @uxon-template [""]
      * 
-     * @param string[] $scopes
+     * @param string[] $arrayOrUxon
      * @return AuthenticationProviderInterface
      */
-    protected function setScopes(array $scopes) : AuthenticationProviderInterface
+    protected function setScopes($arrayOrUxon) : AuthenticationProviderInterface
     {
-        $this->scopes = $scopes;
+        switch (true) { 
+            case $arrayOrUxon instanceof UxonObject:        
+                $this->scopes = $arrayOrUxon->toArray();
+                break;
+            case is_array($arrayOrUxon):
+                $this->scopes = $arrayOrUxon;
+                break;
+            default:
+                throw new InvalidArgumentException('Invalid authenticator configuration for OAuth scopes: expecting array, got ' . gettype($arrayOrUxon));
+        }
         return $this;
     }
     
