@@ -18,6 +18,10 @@ use League\OAuth2\Client\Provider\GenericProvider;
 use exface\Core\Exceptions\RuntimeException;
 use exface\Core\Interfaces\Security\AuthenticationTokenInterface;
 use exface\Core\Exceptions\InvalidArgumentException;
+use exface\Core\Interfaces\Widgets\iHaveButtons;
+use exface\Core\Actions\Login;
+use exface\Core\Exceptions\UnexpectedValueException;
+use exface\Core\DataTypes\PhpClassDataType;
 
 trait OAuth2Trait
 {    
@@ -39,12 +43,33 @@ trait OAuth2Trait
     
     private $usernameResourceOwnerField = null;
     
+    /**
+     * 
+     * @return AuthenticationProviderInterface
+     */
     protected abstract function getAuthProvider() : AuthenticationProviderInterface;
     
+    /**
+     * 
+     * @return AccessTokenInterface|NULL
+     */
     protected abstract function getTokenStored() : ?AccessTokenInterface;
     
+    /**
+     * 
+     * @param AccessTokenInterface $authenticatedToken
+     * @return string|NULL
+     */
     protected abstract function getRefreshToken(AccessTokenInterface $authenticatedToken) : ?string;
     
+    /**
+     * 
+     * @param AuthenticationTokenInterface $token
+     * @throws AuthenticationFailedError
+     * @throws RuntimeException
+     * @throws OAuthInvalidStateException
+     * @return OAuth2AuthenticatedToken
+     */
     protected function exchangeOAuthToken(AuthenticationTokenInterface $token) : OAuth2AuthenticatedToken
     {
         if ($token instanceof OAuth2AuthenticatedToken) {
@@ -138,6 +163,11 @@ trait OAuth2Trait
         throw new AuthenticationFailedError($this->getConnection(), 'Please sign in first!');
     }
     
+    /**
+     * 
+     * {@inheritdoc}
+     * @see AuthenticationProviderInterface::createLoginWidget()
+     */
     public function createLoginWidget(iContainOtherWidgets $container) : iContainOtherWidgets
     {
         $container
@@ -147,9 +177,20 @@ trait OAuth2Trait
             'value' => '\\' . OAuth2RequestToken::class,
             'widget_type' => 'InputHidden'
         ])));
+        if ($container instanceof iHaveButtons) {
+            foreach ($container->getButtons() as $btn) {
+                if ($btn->getAction() instanceof Login) {
+                    $btn->setHidden(true);
+                }
+            }
+        }
         return $container;
     }
     
+    /**
+     * 
+     * @return AbstractProvider
+     */
     protected function getOAuthProvider() : AbstractProvider
     {
         $options = [
@@ -165,10 +206,14 @@ trait OAuth2Trait
     
     /**
      * 
+     * @throws UnexpectedValueException
      * @return string
      */
     public function getClientId() : string
     {
+        if ($this->clientId === null) {
+            throw new UnexpectedValueException('Missing `client_id` property in ' . PhpClassDataType::findClassNameWithoutNamespace($this));
+        }
         return $this->clientId;
     }
     
@@ -189,6 +234,19 @@ trait OAuth2Trait
     }
     
     /**
+     * 
+     * @throws UnexpectedValueException
+     * @return string
+     */
+    protected function getClientSecret() : string
+    {
+        if ($this->clientSecret === null) {
+            throw new UnexpectedValueException('Missing `client_secret` property in ' . PhpClassDataType::findClassNameWithoutNamespace($this));
+        }
+        return $this->clientSecret;
+    }
+    
+    /**
      * The client password assigned to you by the provider
      * 
      * @uxon-property client_secret
@@ -196,16 +254,6 @@ trait OAuth2Trait
      * @uxon-required true
      * 
      * @return string
-     */
-    protected function getClientSecret() : string
-    {
-        return $this->clientSecret;
-    }
-    
-    /**
-     * 
-     * @param string $value
-     * @return AuthenticationProviderInterface
      */
     protected function setClientSecret(string $value) : AuthenticationProviderInterface
     {
@@ -286,7 +334,7 @@ HTML
     /**
      * The URL to start the authorization process
      *
-     * @uxon-property url_access_token
+     * @uxon-property url_authorize
      * @uxon-type uri
      * 
      * @param string $value
