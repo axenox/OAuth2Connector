@@ -11,6 +11,7 @@ use exface\Core\DataTypes\EncryptedDataType;
 use League\OAuth2\Client\Token\AccessToken;
 use exface\Core\CommonLogic\Security\Authenticators\Traits\CreateUserFromTokenTrait;
 use exface\Core\Interfaces\Security\AuthenticationProviderInterface;
+use exface\Core\DataTypes\StringDataType;
 
 class OAuth2Authenticator extends AbstractAuthenticator
 {
@@ -167,26 +168,32 @@ class OAuth2Authenticator extends AbstractAuthenticator
     {
         $firstName = '';
         $lastName = '';
-        $names = explode(' ', $fullName);
-        if (count($names) === 2) {
-            $firstName = $names[0];
-            $lastName = $names[1];
+        
+        if (strpos($fullName, ', ')) {
+            $lastName = StringDataType::substringBefore($fullName, ', ');
+            $firstName = StringDataType::substringAfter($fullName, ', ');
         } else {
-            $lastName = array_pop($names);
-            $middleName = array_pop($names);
-            $firstName = implode(' ', $names);
-            switch (true) {
-                // Max M. Mustermann
-                case strlen($middleName) === 2 && substr($middleName, 1) === '.':
-                    $firstName .= ' ' . $middleName;
-                    break;
-                    // Max Mustermann Jr
-                case strlen($lastName) <= 2:
-                    $lastName = $middleName . ' ' . $lastName;
-                    break;
-                default:
-                    $firstName .= ' ' . $middleName;
-                    break;
+            $names = explode(' ', $fullName);
+            if (count($names) === 2) {
+                $firstName = $names[0];
+                $lastName = $names[1];
+            } else {
+                $lastName = array_pop($names);
+                $middleName = array_pop($names);
+                $firstName = implode(' ', $names);
+                switch (true) {
+                    // Max M. Mustermann
+                    case strlen($middleName) === 2 && substr($middleName, 1) === '.':
+                        $firstName .= ' ' . $middleName;
+                        break;
+                        // Max Mustermann Jr
+                    case strlen($lastName) <= 2:
+                        $lastName = $middleName . ' ' . $lastName;
+                        break;
+                    default:
+                        $firstName .= ' ' . $middleName;
+                        break;
+                }
             }
         }
         
