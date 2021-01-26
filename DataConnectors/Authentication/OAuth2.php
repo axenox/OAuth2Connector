@@ -5,29 +5,40 @@ use exface\Core\CommonLogic\UxonObject;
 use exface\UrlDataConnector\Interfaces\UrlConnectionInterface;
 use exface\Core\CommonLogic\Traits\ImportUxonObjectTrait;
 use exface\Core\Interfaces\Security\AuthenticationTokenInterface;
-use exface\Core\Interfaces\Widgets\iContainOtherWidgets;
-use axenox\OAuth2Connector\Facades\OAuth2ClientFacade;
-use exface\Core\Factories\FacadeFactory;
 use exface\UrlDataConnector\Interfaces\HttpAuthenticationProviderInterface;
+use exface\UrlDataConnector\Interfaces\HttpConnectionInterface;
+use exface\Core\Interfaces\Security\AuthenticationProviderInterface;
+use League\OAuth2\Client\Token\AccessTokenInterface;
+use League\OAuth2\Client\Token\AccessToken;
+use axenox\OAuth2Connector\CommonLogic\Security\AuthenticationToken\OAuth2AuthenticatedToken;
+use exface\Core\Exceptions\InvalidArgumentException;
+use Psr\Http\Message\RequestInterface;
+use axenox\OAuth2Connector\CommonLogic\Security\AuthenticationToken\OAuth2RequestToken;
+use axenox\OAuth2Connector\CommonLogic\Security\Authenticators\OAuth2Trait;
+use GuzzleHttp\Psr7\ServerRequest;
+use exface\Core\Exceptions\Security\AuthenticationFailedError;
 
 class OAuth2 implements HttpAuthenticationProviderInterface
 {
-    use ImportUxonObjectTrait;
+    use OAuth2Trait;
+    use ImportUxonObjectTrait {
+        importUxonObject as importUxonObjectViaTrait;
+    }
+    
+    const CREDENTIALS_TOKEN = 'token';
+    const CREDENTIALS_REFRESH_TOKEN = 'refresh_token';
+    const CREDENTIALS_PROVIDER_HASH = 'provider_hash';
     
     private $connection = null;
     
-    private $clientId = null;
+    private $originalUxon = null;
     
-    private $clientSecret = null;
+    private $storedToken = null;
     
-    private $scope = null;
-    
-    private $authorizationPageUrl = null;
-    
-    private $clientFacade = null;
+    private $refreshToken = null;
     
     /**
-     * 
+     *
      * @param UrlConnectionInterface $dataConnection
      * @param UxonObject $uxon
      */
@@ -39,157 +50,57 @@ class OAuth2 implements HttpAuthenticationProviderInterface
         }
     }
     
-    /**
-     * 
-     * {@inheritDoc}
-     * @see \exface\Core\Interfaces\iCanBeConvertedToUxon::exportUxonObject()
-     */
-    public function exportUxonObject()
+    public function authenticate(AuthenticationTokenInterface $token): AuthenticationTokenInterface
     {
-        return new UxonObject();
-    }
-    
-    /**
-     * 
-     * {@inheritDoc}
-     * @see \exface\Core\Interfaces\Security\AuthenticationProviderInterface::authenticate()
-     */
-    public function authenticate(AuthenticationTokenInterface $token) : AuthenticationTokenInterface
-    {
-        // TODO
-        return $token;
-    }
-    
-    /**
-     * 
-     * {@inheritDoc}
-     * @see \exface\Core\Interfaces\Security\AuthenticationProviderInterface::createLoginWidget()
-     */
-    public function createLoginWidget(iContainOtherWidgets $container) : iContainOtherWidgets
-    {
-        $container->setWidgets(new UxonObject([
-            [
-                'widget_type' => 'browser',
-                'url' => $this->getAuthorizationPageUrl(),
-                'height' => '400px',
-                'width' => '400px'
-            ]
-        ]));
-        return $container;
-    }
-    
-    /**
-     * 
-     * @return string
-     */
-    protected function getAuthorizationPageUrl() : string
-    {
-        return $this->authorizationPageUrl . (strpos($this->authorizationPageUrl, '?') === false ? '?' : '') . '&client_id=' . $this->getClientId() . '&state=' . $this->getState() . '&redirect_uri=' . urlencode($this->getRedirectUrl());
-    }
-    
-    /**
-     * URL to send the user to for authorization
-     * 
-     * @uxon-property authorization_page_url
-     * @uxon-type uri
-     * @uxon-required true
-     * 
-     * @param string $value
-     * @return OAuth2
-     */
-    public function setAuthorizationPageUrl(string $value) : OAuth2
-    {
-        $this->authorizationPageUrl = $value;
-        return $this;
-    }
-    
-    /**
-     * 
-     * @return string
-     */
-    protected function getClientId() : string
-    {
-        return $this->clientId;
-    }
-    
-    /**
-     * OAuth client ID
-     * 
-     * @uxon-property client_id
-     * @uxon-type string
-     * @uxon-required true
-     * 
-     * @param string $value
-     * @return OAuth2
-     */
-    public function setClientId(string $value) : OAuth2
-    {
-        $this->clientId = $value;
-        return $this;
-    }
-    
-    protected function getClientSecret() : string
-    {
-        return $this->clientSecret;
-    }
-    
-    /**
-     * OAuth client secret
-     *
-     * @uxon-property client_secret
-     * @uxon-type string
-     * @uxon-required true
-     *
-     * @param string $value
-     * @return OAuth2
-     */
-    public function setClientSecret(string $value) : OAuth2
-    {
-        $this->clientSecret = $value;
-        return $this;
-    }
-    
-    /**
-     * 
-     * @return string
-     */
-    protected function getState() : string
-    {
-        return uniqid(null, true);
-    }
-    
-    /**
-     * 
-     * @return UrlConnectionInterface
-     */
-    protected function getConnection() : UrlConnectionInterface
-    {
-        return $this->connection;
-    }
-    
-    /**
-     * 
-     * @return OAuth2ClientFacade
-     */
-    protected function getOAuthClientFacade() : OAuth2ClientFacade
-    {
-        if ($this->clientFacade === null) {
-            $this->clientFacade = FacadeFactory::createFromString(OAuth2ClientFacade::class, $this->getConnection()->getWorkbench());;
+        if (! $token instanceof OAuth2RequestToken) {
+            throw new InvalidArgumentException('Cannot use token ' . get_class($token) . ' in OAuth2 authentication: only OAuth2RequestToken or derivatives allowed!');
         }
-        return $this->clientFacade;
+        
+        return $this->exchangeOAuthToken($token);
     }
     
     /**
-     * 
-     * @return string
+     *
+     * {@inheritDoc}
+     * @see \exface\UrlDataConnector\Interfaces\HttpAuthenticationProviderInterface::getDefaultRequestOptions()
      */
-    protected function getRedirectUrl() : string
+    public function getDefaultRequestOptions(array $defaultOptions): array
     {
-        return $this->getOAuthClientFacade()->buildUrlToFacade(false);
+        return $defaultOptions;
     }
     
     /**
-     * 
+     *
+     * {@inheritDoc}
+     * @see \exface\UrlDataConnector\Interfaces\HttpAuthenticationProviderInterface::signRequest()
+     */
+    public function signRequest(RequestInterface $request) : RequestInterface
+    {
+        if ($this->needsSigning($request) === false) {
+            return $request;
+        }
+        
+        $token = $this->getTokenStored();
+        
+        switch (true) {
+            case ! $token:
+                throw new AuthenticationFailedError($this->getConnection(), 'Please authenticate first!');
+            case $token->hasExpired():
+                $clientFacade = $this->getOAuthClientFacade();
+                $hash = $this->getOAuthProviderHash();
+                $fakeRequest = new ServerRequest('GET', $clientFacade->buildUrlForProvider($this, $hash));
+                $requestToken = new OAuth2RequestToken($fakeRequest, $hash, $clientFacade);
+                $token = $this->getConnection()->authenticate($requestToken, true, $this->getWorkbench()->getSecurity()->getAuthenticatedUser(), true);
+                break;
+        }
+        
+        $request = $request->withHeader('Authorization', 'Bearer ' . $token->getToken());
+        
+        return $request;
+    }
+    
+    /**
+     *
      * {@inheritDoc}
      * @see \exface\Core\Interfaces\WorkbenchDependantInterface::getWorkbench()
      */
@@ -199,27 +110,138 @@ class OAuth2 implements HttpAuthenticationProviderInterface
     }
     
     /**
-     * 
-     * {@inheritDoc}
-     * @see \exface\UrlDataConnector\Interfaces\HttpAuthenticationProviderInterface::getDefaultRequestOptions()
-     */
-    public function getDefaultRequestOptions(array $defaultOptions): array
-    {
-        return $defaultOptions;
-    }
-
-    /**
-     * 
+     *
      * {@inheritDoc}
      * @see \exface\UrlDataConnector\Interfaces\HttpAuthenticationProviderInterface::getCredentialsUxon()
      */
     public function getCredentialsUxon(AuthenticationTokenInterface $authenticatedToken): UxonObject
     {
-        return new UxonObject([
+        if (! $authenticatedToken instanceof OAuth2AuthenticatedToken) {
+            throw new InvalidArgumentException('Cannot store authentication token ' . get_class($authenticatedToken) . ' in OAuth2 credentials: only OAuth2AuthenticatedToken or derivatives supported!');
+        }
+        
+        $accessToken = $authenticatedToken->getAccessToken();
+        $uxon = new UxonObject([
             'authentication' => [
-                'class' => '\\' . get_class($this)
+                'class' => '\\' . get_class($this),
+                self::CREDENTIALS_TOKEN => $accessToken->jsonSerialize(),
+                self::CREDENTIALS_REFRESH_TOKEN => ($accessToken->getRefreshToken() ? $accessToken->getRefreshToken() : $this->getRefreshToken($accessToken)),
+                self::CREDENTIALS_PROVIDER_HASH => $this->getOAuthProviderHash()
             ]
         ]);
+        
+        return $uxon;
     }
-
+    
+    /**
+     * 
+     * @param RequestInterface $request
+     * @return bool
+     */
+    protected function needsSigning(RequestInterface $request) : bool
+    {
+        return true;
+    }
+    
+    /**
+     * Use a custom token (only use this if really neccessary!)
+     * 
+     * @uxon-property token
+     * @uxon-type object
+     * 
+     * @param UxonObject|AccessTokenInterface $uxon
+     * @return OAuth2
+     */
+    protected function setToken($tokenOrUxon) : OAuth2
+    {
+        switch (true) {
+            case $tokenOrUxon instanceof AccessTokenInterface:
+                $token = $tokenOrUxon;
+                break;
+            case $tokenOrUxon instanceof UxonObject:
+                $token = new AccessToken($tokenOrUxon->toArray());
+                break;
+            default:
+                throw new InvalidArgumentException('Cannot store OAuth token: expecting AccessTokenInterface or UXON, got ' . gettype($tokenOrUxon) . ' instead!');
+        }
+        
+        $this->storedToken = $token;
+        
+        return $this;
+    }
+    
+    /**
+     * 
+     * @see OAuth2Trait::getTokenStored()
+     */
+    protected function getTokenStored() : ?AccessTokenInterface
+    {
+        return $this->storedToken;
+    }
+    
+    /**
+     * 
+     * {@inheritDoc}
+     * @see \exface\Core\Interfaces\iCanBeConvertedToUxon::exportUxonObject()
+     */
+    public function exportUxonObject()
+    {
+        return $this->originalUxon ?? new UxonObject();
+    }
+    
+    /**
+     *
+     * @see OAuth2Trait::getRefreshToken()
+     */
+    protected function getRefreshToken(AccessTokenInterface $authenticatedToken) : ?string
+    {
+        return $this->refreshToken;
+    }
+    
+    /**
+     *
+     * @param string|null $value
+     * @return AuthenticationProviderInterface
+     */
+    protected function setRefreshToken($value) : AuthenticationProviderInterface
+    {
+        $this->refreshToken = $value;
+        return $this;
+    }
+    
+    /**
+     * 
+     * @return AuthenticationProviderInterface
+     */
+    protected function getAuthProvider() : AuthenticationProviderInterface
+    {
+        return $this->getConnection();
+    }
+    
+    /**
+     *
+     * {@inheritDoc}
+     * @see \exface\UrlDataConnector\Interfaces\HttpAuthenticationProviderInterface::getConnection()
+     */
+    public function getConnection() : HttpConnectionInterface
+    {
+        return $this->connection;
+    }
+    
+    /**
+     * 
+     * {@inheritDoc}
+     * @see \exface\Core\Interfaces\iCanBeConvertedToUxon::importUxonObject()
+     */
+    public function importUxonObject(UxonObject $uxon, array $skip_property_names = array())
+    {
+        $storedHash = $uxon->getProperty(self::CREDENTIALS_PROVIDER_HASH);
+        if (! $storedHash || $storedHash !== $this->getOAuthProviderHash()) {
+            $uxon->unsetProperty(self::CREDENTIALS_TOKEN);
+            $uxon->unsetProperty(self::CREDENTIALS_REFRESH_TOKEN);
+            $uxon->unsetProperty(self::CREDENTIALS_PROVIDER_HASH);
+        }
+        $this->originalUxon = $uxon;
+        $this->importUxonObjectViaTrait($uxon, $skip_property_names);
+    }
 }
