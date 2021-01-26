@@ -62,7 +62,7 @@ class OAuth2 extends AbstractHttpAuthenticationProvider
         switch (true) {
             case ! $token:
                 throw new AuthenticationFailedError($this->getConnection(), 'Please authenticate first!');
-            case $token->hasExpired():
+            case $token->hasExpired() && $this->getRefreshToken($token):
                 $clientFacade = $this->getOAuthClientFacade();
                 $hash = $this->getOAuthProviderHash();
                 $fakeRequest = new ServerRequest('GET', $clientFacade->buildUrlForProvider($this, $hash));
