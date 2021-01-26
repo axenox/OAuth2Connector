@@ -67,7 +67,8 @@ class OAuth2 extends AbstractHttpAuthenticationProvider
                 $hash = $this->getOAuthProviderHash();
                 $fakeRequest = new ServerRequest('GET', $clientFacade->buildUrlForProvider($this, $hash));
                 $requestToken = new OAuth2RequestToken($fakeRequest, $hash, $clientFacade);
-                $token = $this->getConnection()->authenticate($requestToken, true, $this->getWorkbench()->getSecurity()->getAuthenticatedUser(), true);
+                $authenticatedToken = $this->getConnection()->authenticate($requestToken, true, $this->getWorkbench()->getSecurity()->getAuthenticatedUser(), true);
+                $token = $authenticatedToken->getAccessToken();
                 break;
         }
         
