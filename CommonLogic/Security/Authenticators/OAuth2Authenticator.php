@@ -145,7 +145,8 @@ class OAuth2Authenticator extends AbstractAuthenticator
     {
         $encrypted = $this->getWorkbench()->getContext()->getScopeSession()->getVariable('refresh', $this->getId());
         try {
-            return EncryptedDataType::decrypt(EncryptedDataType::getSecret($this->getWorkbench()), $encrypted);
+            $decrypted = EncryptedDataType::decrypt(EncryptedDataType::getSecret($this->getWorkbench()), $encrypted);
+            return ($decrypted ? $decrypted : $authenticatedToken->getRefreshToken());
         } catch (\Throwable $e) {
             return null;
         }

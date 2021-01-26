@@ -152,7 +152,7 @@ class OAuth2 extends AbstractHttpAuthenticationProvider
      */
     protected function getRefreshToken(AccessTokenInterface $authenticatedToken) : ?string
     {
-        return $this->refreshToken;
+        return $this->refreshToken ?? $authenticatedToken->getRefreshToken();
     }
     
     /**
