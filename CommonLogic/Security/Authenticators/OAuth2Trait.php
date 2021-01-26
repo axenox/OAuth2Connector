@@ -212,7 +212,7 @@ trait OAuth2Trait
     public function getClientId() : string
     {
         if ($this->clientId === null) {
-            throw new UnexpectedValueException('Missing `client_id` property in ' . PhpClassDataType::findClassNameWithoutNamespace($this));
+            throw new UnexpectedValueException('Missing `client_id` property in ' . PhpClassDataType::findClassNameWithoutNamespace($this) . ' configuration!');
         }
         return $this->clientId;
     }
@@ -241,7 +241,7 @@ trait OAuth2Trait
     protected function getClientSecret() : string
     {
         if ($this->clientSecret === null) {
-            throw new UnexpectedValueException('Missing `client_secret` property in ' . PhpClassDataType::findClassNameWithoutNamespace($this));
+            throw new UnexpectedValueException('Missing `client_secret` property in ' . PhpClassDataType::findClassNameWithoutNamespace($this) . ' configuration!');
         }
         return $this->clientSecret;
     }

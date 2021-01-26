@@ -235,13 +235,16 @@ class OAuth2 implements HttpAuthenticationProviderInterface
      */
     public function importUxonObject(UxonObject $uxon, array $skip_property_names = array())
     {
-        $storedHash = $uxon->getProperty(self::CREDENTIALS_PROVIDER_HASH);
-        if (! $storedHash || $storedHash !== $this->getOAuthProviderHash()) {
-            $uxon->unsetProperty(self::CREDENTIALS_TOKEN);
-            $uxon->unsetProperty(self::CREDENTIALS_REFRESH_TOKEN);
-            $uxon->unsetProperty(self::CREDENTIALS_PROVIDER_HASH);
-        }
         $this->originalUxon = $uxon;
+        
+        $storedHash = $uxon->getProperty(self::CREDENTIALS_PROVIDER_HASH);
+        $uxon->unsetProperty(self::CREDENTIALS_PROVIDER_HASH);
+        
         $this->importUxonObjectViaTrait($uxon, $skip_property_names);
+        
+        if (! $storedHash || $storedHash !== $this->getOAuthProviderHash()) {
+            $this->storedToken = null;
+            $this->refreshToken = null;
+        }
     }
 }
