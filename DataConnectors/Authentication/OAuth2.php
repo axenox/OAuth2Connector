@@ -2,11 +2,8 @@
 namespace axenox\OAuth2Connector\DataConnectors\Authentication;
 
 use exface\Core\CommonLogic\UxonObject;
-use exface\UrlDataConnector\Interfaces\UrlConnectionInterface;
-use exface\Core\CommonLogic\Traits\ImportUxonObjectTrait;
 use exface\Core\Interfaces\Security\AuthenticationTokenInterface;
-use exface\UrlDataConnector\Interfaces\HttpAuthenticationProviderInterface;
-use exface\UrlDataConnector\Interfaces\HttpConnectionInterface;
+use exface\UrlDataConnector\CommonLogic\AbstractHttpAuthenticationProvider;
 use exface\Core\Interfaces\Security\AuthenticationProviderInterface;
 use League\OAuth2\Client\Token\AccessTokenInterface;
 use League\OAuth2\Client\Token\AccessToken;
@@ -18,37 +15,17 @@ use axenox\OAuth2Connector\CommonLogic\Security\Authenticators\OAuth2Trait;
 use GuzzleHttp\Psr7\ServerRequest;
 use exface\Core\Exceptions\Security\AuthenticationFailedError;
 
-class OAuth2 implements HttpAuthenticationProviderInterface
+class OAuth2 extends AbstractHttpAuthenticationProvider
 {
     use OAuth2Trait;
-    use ImportUxonObjectTrait {
-        importUxonObject as importUxonObjectViaTrait;
-    }
     
     const CREDENTIALS_TOKEN = 'token';
     const CREDENTIALS_REFRESH_TOKEN = 'refresh_token';
     const CREDENTIALS_PROVIDER_HASH = 'provider_hash';
     
-    private $connection = null;
-    
-    private $originalUxon = null;
-    
     private $storedToken = null;
     
     private $refreshToken = null;
-    
-    /**
-     *
-     * @param UrlConnectionInterface $dataConnection
-     * @param UxonObject $uxon
-     */
-    public function __construct(UrlConnectionInterface $dataConnection, UxonObject $uxon = null)
-    {
-        $this->connection = $dataConnection;
-        if ($uxon !== null) {
-            $this->importUxonObject($uxon, ['class']);
-        }
-    }
     
     public function authenticate(AuthenticationTokenInterface $token): AuthenticationTokenInterface
     {
@@ -97,16 +74,6 @@ class OAuth2 implements HttpAuthenticationProviderInterface
         $request = $request->withHeader('Authorization', 'Bearer ' . $token->getToken());
         
         return $request;
-    }
-    
-    /**
-     *
-     * {@inheritDoc}
-     * @see \exface\Core\Interfaces\WorkbenchDependantInterface::getWorkbench()
-     */
-    public function getWorkbench()
-    {
-        return $this->connection->getWorkbench();
     }
     
     /**
@@ -180,16 +147,6 @@ class OAuth2 implements HttpAuthenticationProviderInterface
     }
     
     /**
-     * 
-     * {@inheritDoc}
-     * @see \exface\Core\Interfaces\iCanBeConvertedToUxon::exportUxonObject()
-     */
-    public function exportUxonObject()
-    {
-        return $this->originalUxon ?? new UxonObject();
-    }
-    
-    /**
      *
      * @see OAuth2Trait::getRefreshToken()
      */
@@ -219,28 +176,16 @@ class OAuth2 implements HttpAuthenticationProviderInterface
     }
     
     /**
-     *
-     * {@inheritDoc}
-     * @see \exface\UrlDataConnector\Interfaces\HttpAuthenticationProviderInterface::getConnection()
-     */
-    public function getConnection() : HttpConnectionInterface
-    {
-        return $this->connection;
-    }
-    
-    /**
      * 
      * {@inheritDoc}
-     * @see \exface\Core\Interfaces\iCanBeConvertedToUxon::importUxonObject()
+     * @see \exface\Core\CommonLogic\Traits\ImportUxonObjectTrait::importUxonObject()
      */
     public function importUxonObject(UxonObject $uxon, array $skip_property_names = array())
     {
-        $this->originalUxon = $uxon;
-        
         $storedHash = $uxon->getProperty(self::CREDENTIALS_PROVIDER_HASH);
         $uxon->unsetProperty(self::CREDENTIALS_PROVIDER_HASH);
         
-        $this->importUxonObjectViaTrait($uxon, $skip_property_names);
+        parent::importUxonObject($uxon, $skip_property_names);
         
         if (! $storedHash || $storedHash !== $this->getOAuthProviderHash()) {
             $this->storedToken = null;
