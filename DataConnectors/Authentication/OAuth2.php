@@ -215,7 +215,7 @@ class OAuth2 extends AbstractHttpAuthenticationProvider
      * URL patterns (regex) to perform without authentication.
      * 
      * If one of the patterns matches the URI of the request, no authentication header
-     * will be added. For example: `~*\$metadata$` will exlude all URLs ending with `$metadata`. 
+     * will be added. For example: `~.*\$metadata$` will exlude all URLs ending with `$metadata`. 
      * 
      * @uxon-property exclude_urls
      * @uxon-type array
