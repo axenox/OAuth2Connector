@@ -27,6 +27,8 @@ class OAuth2 extends AbstractHttpAuthenticationProvider
     
     private $refreshToken = null;
     
+    private $excludeUrls = [];
+    
     public function authenticate(AuthenticationTokenInterface $token): AuthenticationTokenInterface
     {
         if (! $token instanceof OAuth2RequestToken) {
@@ -108,6 +110,12 @@ class OAuth2 extends AbstractHttpAuthenticationProvider
      */
     protected function needsSigning(RequestInterface $request) : bool
     {
+        $url = $request->getUri()->__toString();
+        foreach ($this->getExcludeUrls() as $pattern) {
+            if (preg_match($pattern, $url)) {
+                return false;
+            }
+        }
         return true;
     }
     
@@ -192,5 +200,33 @@ class OAuth2 extends AbstractHttpAuthenticationProvider
             $this->storedToken = null;
             $this->refreshToken = null;
         }
+    }
+    
+    /**
+     * 
+     * @return string[]
+     */
+    protected function getExcludeUrls() : array
+    {
+        return $this->excludeUrls;
+    }
+    
+    /**
+     * URL patterns (regex) to perform without authentication.
+     * 
+     * If one of the patterns matches the URI of the request, no authentication header
+     * will be added. For example: `~*\$metadata$` will exlude all URLs ending with `$metadata`. 
+     * 
+     * @uxon-property exclude_urls
+     * @uxon-type array
+     * @uxon-template [""]
+     * 
+     * @param string[] $value
+     * @return OAuth2
+     */
+    protected function setExcludeUrls(UxonObject $uxon) : OAuth2
+    {
+        $this->excludeUrls = $uxon->toArray();
+        return $this;
     }
 }
