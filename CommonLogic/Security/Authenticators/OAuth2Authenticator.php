@@ -128,11 +128,16 @@ class OAuth2Authenticator extends AbstractAuthenticator
     protected function getTokenStored(): ?AccessTokenInterface
     {
         $encrypted = $this->getWorkbench()->getContext()->getScopeSession()->getVariable('token', $this->getId());
-        try {
-            $serialized = EncryptedDataType::decrypt(EncryptedDataType::getSecret($this->getWorkbench()), $encrypted);
-            $array = json_decode($serialized, true);
-            return new AccessToken($array);
-        } catch (\Throwable $e) {
+        if ($encrypted) {
+            try {
+                $serialized = EncryptedDataType::decrypt(EncryptedDataType::getSecret($this->getWorkbench()), $encrypted);
+                $array = json_decode($serialized, true);
+                return new AccessToken($array);
+            } catch (\Throwable $e) {
+                $this->getWorkbench()->getLogger()->logException($e);
+                return null;
+            }
+        } else {
             return null;
         }
     }

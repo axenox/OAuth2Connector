@@ -6,6 +6,12 @@ use exface\Core\Interfaces\Security\AuthenticationTokenInterface;
 use exface\Core\Interfaces\Facades\HttpFacadeInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
+/**
+ * Represents an OAuth2.0 request (not an access token yet!)
+ * 
+ * @author andrej.kabachnik
+ *
+ */
 class OAuth2RequestToken implements AuthenticationTokenInterface
 {
     private $facade = null;
