@@ -191,6 +191,10 @@ class OAuth2Authenticator extends AbstractAuthenticator
      */
     public function getTokenLifetime(AuthenticationTokenInterface $token) : ?int
     {
+        $userDefinedLifetime = parent::getTokenLifetime($token);
+        if ($userDefinedLifetime !== null) {
+            return $userDefinedLifetime;
+        }
         if ($token instanceof OAuth2AuthenticatedToken) {
             if ($expires = $token->getAccessToken()->getExpires()) {
                 $lifetime = $expires - time();
