@@ -125,7 +125,7 @@ class OAuth2ClientFacade extends AbstractHttpFacade implements OAuth2ClientFacad
      * {@inheritDoc}
      * @see \axenox\OAuth2Connector\Interfaces\OAuth2ClientFacadeInterface::startOAuthSession()
      */
-    public function startOAuthSession(object $initiator, string $providerHash, string $redirect, array $vars = []) : OAuth2ClientFacadeInterface
+    public function startOAuthSession(object $initiator, string $providerHash, string $redirect = null, array $vars = []) : OAuth2ClientFacadeInterface
     {
         switch (true) {
             case $initiator instanceof DataConnectionInterface:
