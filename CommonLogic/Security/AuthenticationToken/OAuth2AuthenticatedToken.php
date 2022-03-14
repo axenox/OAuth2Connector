@@ -64,7 +64,7 @@ class OAuth2AuthenticatedToken implements AuthenticationTokenInterface
     }
     
     /**
-     * 
+     * Returns the access token used in PHP league OAuth2 framework
      * @return AccessTokenInterface
      */
     public function getAccessToken() : AccessTokenInterface
