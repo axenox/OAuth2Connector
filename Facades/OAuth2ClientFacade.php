@@ -42,11 +42,11 @@ class OAuth2ClientFacade extends AbstractHttpFacade implements OAuth2ClientFacad
     }
     
     /**
-     *
+     * 
      * {@inheritDoc}
-     * @see \Psr\Http\Server\RequestHandlerInterface::handle()
+     * @see \exface\Core\Facades\AbstractHttpFacade\AbstractHttpFacade::createResponse($request)
      */
-    public function handle(ServerRequestInterface $request) : ResponseInterface
+    protected function createResponse(ServerRequestInterface $request) : ResponseInterface
     {
         $path = $this->getUriPath($request);
         $user = $this->getWorkbench()->getSecurity()->getAuthenticatedUser();
