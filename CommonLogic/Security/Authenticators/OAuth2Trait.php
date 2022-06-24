@@ -11,11 +11,11 @@ use exface\Core\Factories\WidgetFactory;
 use exface\Core\Exceptions\Security\AuthenticationFailedError;
 use axenox\OAuth2Connector\CommonLogic\Security\AuthenticationToken\OAuth2RequestToken;
 use League\OAuth2\Client\Provider\AbstractProvider;
-use axenox\OAuth2Connector\Exceptions\OAuthInvalidStateException;
+use axenox\OAuth2Connector\Exceptions\OAuthHttpException;
 use exface\Core\Interfaces\WidgetInterface;
 use exface\Core\Interfaces\Security\AuthenticationProviderInterface;
 use League\OAuth2\Client\Provider\GenericProvider;
-use exface\Core\Exceptions\RuntimeException;
+use exface\Core\Exceptions\Security\AuthenticationRuntimeError;
 use exface\Core\Interfaces\Security\AuthenticationTokenInterface;
 use exface\Core\Exceptions\InvalidArgumentException;
 use exface\Core\Interfaces\Widgets\iHaveButtons;
@@ -66,8 +66,7 @@ trait OAuth2Trait
      * 
      * @param AuthenticationTokenInterface $token
      * @throws AuthenticationFailedError
-     * @throws RuntimeException
-     * @throws OAuthInvalidStateException
+     * @throws OAuthHttpException
      * @return OAuth2AuthenticatedToken
      */
     protected function exchangeOAuthToken(AuthenticationTokenInterface $token) : OAuth2AuthenticatedToken
@@ -81,7 +80,7 @@ trait OAuth2Trait
         }
         
         if (! $token instanceof OAuth2RequestToken) {
-            throw new RuntimeException('Cannot use "' . get_class($token) . '" as OAuth token!');
+            throw new AuthenticationRuntimeError($this, 'Cannot use "' . get_class($token) . '" as OAuth token!');
         }
         
         if ($token->getOAuthProviderHash() !== $this->getOAuthProviderHash()) {
@@ -133,7 +132,7 @@ trait OAuth2Trait
                 // Got an error, probably user denied access
             case !empty($requestParams['error']):
                 $clientFacade->stopOAuthSession();
-                throw new AuthenticationFailedError($this, 'OAuth2 error: ' . htmlspecialchars($requestParams['error'], ENT_QUOTES, 'UTF-8'));
+                throw new OAuthHttpException($this, 'OAuth2 error: ' . htmlspecialchars($requestParams['error'], ENT_QUOTES, 'UTF-8'), null, null, $request);
                 
                 // If code is not empty and there is no error, process provider response here
             default:
@@ -141,7 +140,7 @@ trait OAuth2Trait
                 
                 if (empty($requestParams['state']) || $requestParams['state'] !== $sessionVars['state']) {
                     $clientFacade->stopOAuthSession();
-                    throw new OAuthInvalidStateException($this, 'Invalid OAuth2 state!');
+                    throw new OAuthHttpException($this, 'Invalid OAuth2 state: expecting "' . $sessionVars['state'] . '", received from provider "' . $requestParams['state'] . '"!', null, null, $request);
                 }
                 
                 // Get an access token (using the authorization code grant)
@@ -151,7 +150,7 @@ trait OAuth2Trait
                     ]);
                 } catch (\Throwable $e) {
                     $clientFacade->stopOAuthSession();
-                    throw new AuthenticationFailedError($this->getConnection(), $e->getMessage(), null, $e);
+                    throw new OAuthHttpException($this->getAuthProvider(), 'Cannot get OAuth2 access token from provider response: ' . $e->getMessage(), null, $e, $request);
                 }
         }
         
