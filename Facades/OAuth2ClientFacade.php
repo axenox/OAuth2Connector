@@ -109,7 +109,8 @@ class OAuth2ClientFacade extends AbstractHttpFacade implements OAuth2ClientFacad
                         $authProvider = DataConnectionFactory::createFromModel($this->getWorkbench(), $session['selector']);
                         $debug['oauth_provider'] = $authProvider->getAliasWithNamespace();
                         try {
-                            $authProvider->authenticate($requestToken, true, $user, true);
+                            $authenticatedToken = $authProvider->authenticate($requestToken, true, $user, true);
+                            $this->getWorkbench()->getLogger()->debug('OAuth2 facade: Authenticated user "' . $authenticatedToken->getUsername() . '"', $debug);
                         } catch (AuthenticationFailedError $e) {
                             $this->getWorkbench()->getLogger()->logException($e);
                         }
@@ -120,7 +121,7 @@ class OAuth2ClientFacade extends AbstractHttpFacade implements OAuth2ClientFacad
         }
         
         if ($redirect) {
-            $debug['result'] = 'Authenticated, redirecting to "' . $redirect . '"';
+            $debug['result'] = 'Redirecting to "' . $redirect . '"';
             $response = new Response(200, ['Location' => $redirect]);
         } else {
             $debug['result'] = 'ERROR, no redirect URL';
