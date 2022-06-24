@@ -14,7 +14,7 @@ use exface\Core\CommonLogic\Debugger\HttpMessageDebugWidgetRenderer;
  * @author andrej.kabachnik
  *
  */
-class OAuthHttpException extends AuthenticationRuntimeError implements AuthenticationExceptionInterface
+class OAuthHttpException extends AuthenticationRuntimeError
 {
     private $request = null;
     
