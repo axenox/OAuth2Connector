@@ -91,7 +91,7 @@ class OAuth2ClientFacade extends AbstractHttpFacade implements OAuth2ClientFacad
                     case self::INITIATOR_TYPE_AUTHENTICATOR:
                         $debug['session_type'] = self::INITIATOR_TYPE_AUTHENTICATOR;
                         $debug['oauth_provider'] = 'Workbench security';
-                        $this->getWorkbench()->getLogger()->debug('OAuth2 facade: session-based start of ' . $debug['initiator_type'], $debug);
+                        $this->getWorkbench()->getLogger()->debug('OAuth2 facade: session-based start of ' . $debug['session_type'], $debug);
                         $authProvider = $this->getWorkbench()->getSecurity();
                         try {
                             $authProvider->authenticate($requestToken);
@@ -101,7 +101,7 @@ class OAuth2ClientFacade extends AbstractHttpFacade implements OAuth2ClientFacad
                         break;
                     case self::INITIATOR_TYPE_CONNECTION:
                         $debug['session_type'] = self::INITIATOR_TYPE_AUTHENTICATOR;
-                        $this->getWorkbench()->getLogger()->debug('OAuth2 facade: session starting ' . $debug['initiator_type'] . ' "' . $session['selector'] . '" for user "' . $user->getUsername() . '"', $debug);
+                        $this->getWorkbench()->getLogger()->debug('OAuth2 facade: session starting ' . $debug['session_type'] . ' "' . $session['selector'] . '" for user "' . $user->getUsername() . '"', $debug);
                         // TODO get the user from the Login action somehow!
                         if ($user->isAnonymous()) {
                             throw new RuntimeException('Cannot save OAuth credentials without a user being logged on!');
