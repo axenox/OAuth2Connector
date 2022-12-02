@@ -33,9 +33,7 @@
     "extra": {
         "app": {
             "app_uid": "0x11ebb9fe152517a0b9fe847beb4a5184",
-            "app_alias": "axenox.OAuth2Connector",
-            "model_md5": "72755b246663e40cd9670879f1fa77de",
-            "model_timestamp": "2021-01-21 18:12:16"
+            "app_alias": "axenox.OAuth2Connector"
         }
     }
 }
