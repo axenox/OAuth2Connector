@@ -22,6 +22,7 @@ use exface\Core\Interfaces\Widgets\iHaveButtons;
 use exface\Core\Actions\Login;
 use exface\Core\Exceptions\UnexpectedValueException;
 use exface\Core\DataTypes\PhpClassDataType;
+use exface\Core\Widgets\LoginPrompt;
 
 trait OAuth2Trait
 {    
@@ -169,7 +170,16 @@ trait OAuth2Trait
      */
     public function createLoginWidget(iContainOtherWidgets $container) : iContainOtherWidgets
     {
-        $container
+        if ($container instanceof LoginPrompt) {
+            $loginForm = WidgetFactory::create($container->getPage(), 'Form', $container);
+            $loginForm->setObjectAlias('exface.Core.LOGIN_DATA');
+            $loginForm->setCaption($this->getName());
+            $container->addWidget($loginForm);
+        } else {
+            $loginForm = $container;
+        }
+        
+        $loginForm
         ->addWidget($this->createButtonWidget($container))
         ->addWidget(WidgetFactory::createFromUxonInParent($container, new UxonObject([
             'attribute_alias' => 'AUTH_TOKEN_CLASS',
