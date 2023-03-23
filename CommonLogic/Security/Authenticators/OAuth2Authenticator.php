@@ -246,8 +246,8 @@ class OAuth2Authenticator extends AbstractAuthenticator
         }
         
         return [
-            $firstName,
-            $lastName
+            trim($firstName),
+            trim($lastName)
         ];
     }
 }
