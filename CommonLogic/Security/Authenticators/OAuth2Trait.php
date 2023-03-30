@@ -44,6 +44,8 @@ trait OAuth2Trait
     
     private $usernameResourceOwnerField = null;
     
+    private $debug = false;
+    
     /**
      * 
      * @return AuthenticationProviderInterface
@@ -95,13 +97,20 @@ trait OAuth2Trait
         
         switch (true) {
             
-            // If we are not processing a provider response, either use the stored token
-            // or redirect ot the provider to start authentication
-            case empty($requestParams['code']):
+            // Got an error, probably user denied access
+            case ! empty($requestParams['error']):
+                $clientFacade->stopOAuthSession();
+                throw new OAuthHttpException($this, 'OAuth2 error: ' . htmlspecialchars($requestParams['error'], ENT_QUOTES, 'UTF-8'), null, null, $request);
                 
+            // If we are not processing a provider response, either use the stored token
+            // or redirect to the provider to start authentication
+            case empty($requestParams['code']):
                 $authOptions = [];
                 $oauthToken = $this->getTokenStored();
                 if ($oauthToken) {
+                    if ($this->isDebugMode()) {
+                        $this->getWorkbench()->getLogger()->debug('OAuth2: authentication requested with stored token', $oauthToken->jsonSerialize());
+                    }
                     $expired = $oauthToken->hasExpired();
                     if ($expired) {
                         if (! $this->getRefreshToken($oauthToken)) {
@@ -112,30 +121,38 @@ trait OAuth2Trait
                             ]);
                         }
                     }
+                } else {
+                    if ($this->isDebugMode()) {
+                        $this->getWorkbench()->getLogger()->debug('OAuth2: authentication requested without stored token');
+                    }
                 }
                 if (! $oauthToken || ! empty($authOptions)) {
                     // If we don't have an authorization code then get one
                     $authUrl = $provider->getAuthorizationUrl($authOptions);
+                    if ($this->isDebugMode()) {
+                        $this->getWorkbench()->getLogger()->debug('OAuth2: redirecting to ' . $authUrl);
+                    }
                     $redirectUrl = $request->getHeader('Referer')[0];
                     $clientFacade->startOAuthSession(
                         $this->getConnection(),
                         $this->getOAuthProviderHash(),
                         $redirectUrl,
-                        [
-                            'state' => $provider->getState()
+                        ['state' => $provider->getState()]
+                    );
+                    if ($this->isDebugMode()) {
+                        $this->getWorkbench()->getLogger()->debug('OAuth2: redirecting to provider', [
+                            'oauth_hash' => $this->getOAuthProviderHash(),
+                            'oauth_state' => $provider->getState(),
+                            'provider_url' => $authUrl
                         ]);
+                    }
                     $this->getWorkbench()->stop();
                     header('Location: ' . $authUrl);
                     exit;
                 }
                 break;
                 
-                // Got an error, probably user denied access
-            case !empty($requestParams['error']):
-                $clientFacade->stopOAuthSession();
-                throw new OAuthHttpException($this, 'OAuth2 error: ' . htmlspecialchars($requestParams['error'], ENT_QUOTES, 'UTF-8'), null, null, $request);
-                
-                // If code is not empty and there is no error, process provider response here
+            // If code is not empty and there is no error, process provider response here
             default:
                 $sessionVars = $clientFacade->getOAuthSessionVars();
                 
@@ -149,6 +166,12 @@ trait OAuth2Trait
                     $oauthToken = $provider->getAccessToken('authorization_code', [
                         'code' => $requestParams['code']
                     ]);
+                    if ($this->isDebugMode()) {
+                        $this->getWorkbench()->getLogger()->debug('OAuth2: authentication successfull. Received new token from provider', [
+                            'oauth_session' => $sessionVars,
+                            'oauth_access_token' => $oauthToken->jsonSerialize()
+                        ]);
+                    }
                 } catch (\Throwable $e) {
                     $clientFacade->stopOAuthSession();
                     throw new OAuthHttpException($this->getAuthProvider(), 'Cannot get OAuth2 access token from provider response: ' . $e->getMessage(), null, $e, $request);
@@ -470,6 +493,31 @@ HTML
     protected function setUsernameResourceOwnerField(string $fieldName) : AuthenticationProviderInterface
     {
         $this->usernameResourceOwnerField = $fieldName;
+        return $this;
+    }
+    
+    /**
+     *
+     * @return bool
+     */
+    protected function isDebugMode() : bool
+    {
+        return $this->debug;
+    }
+    
+    /**
+     * Set to TRUE to log additional information for debugging: e.g. access tokens, etc.
+     *
+     * @uxon-property debug_log
+     * @uxon-type boolean
+     * @uxon-default false
+     *
+     * @param bool $value
+     * @return OAuth2Authenticator
+     */
+    protected function setDebugLog(bool $value) : OAuth2Authenticator
+    {
+        $this->debug = $value;
         return $this;
     }
 }

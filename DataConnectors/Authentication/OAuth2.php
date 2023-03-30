@@ -15,6 +15,18 @@ use axenox\OAuth2Connector\CommonLogic\Security\Authenticators\OAuth2Trait;
 use GuzzleHttp\Psr7\ServerRequest;
 use exface\Core\Exceptions\Security\AuthenticationFailedError;
 
+/**
+ * Logs in to a data source using the OAuth 2.0 protocol.
+ * 
+ * ## Debugging
+ * 
+ * Set `debug_log` to `true` in the configuration of the authenticator to get more detailed information
+ * in the log. Keep in mind, that this might include sensitive personal information depending on what the
+ * provider includes in its responses.
+ * 
+ * @author andrej.kabachnik
+ *
+ */
 class OAuth2 extends AbstractHttpAuthenticationProvider
 {
     use OAuth2Trait;
