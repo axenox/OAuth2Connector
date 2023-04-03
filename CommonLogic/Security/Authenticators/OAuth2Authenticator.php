@@ -10,6 +10,7 @@ use axenox\OAuth2Connector\CommonLogic\Security\AuthenticationToken\OAuth2Authen
 use exface\Core\DataTypes\EncryptedDataType;
 use League\OAuth2\Client\Token\AccessToken;
 use exface\Core\CommonLogic\Security\Authenticators\Traits\CreateUserFromTokenTrait;
+use exface\Core\CommonLogic\Security\Authenticators\Traits\SyncRolesWithTokenTrait;
 use exface\Core\Interfaces\Security\AuthenticationProviderInterface;
 use exface\Core\DataTypes\StringDataType;
 
@@ -53,6 +54,7 @@ class OAuth2Authenticator extends AbstractAuthenticator
 {
     use OAuth2Trait;
     use CreateUserFromTokenTrait;
+    use SyncRolesWithTokenTrait;
     
     private $authenticatedToken = null;
     
@@ -73,6 +75,9 @@ class OAuth2Authenticator extends AbstractAuthenticator
         } else {
             throw new AuthenticationFailedError($this, "Authentication failed, no workbench user '{$token->getUsername()}' exists: either create one manually or enable `create_new_users` in authenticator configuration!", '7AL3J9X');
         }
+        
+        $this->syncUserRoles($user, $token);
+        
         $this->logSuccessfulAuthentication($user, $token->getUsername());
         if ($token->getUsername() !== $user->getUsername()) {
             return new OAuth2AuthenticatedToken($user->getUsername(), $token->getAccessToken(), $token->getFacade());
@@ -255,5 +260,10 @@ class OAuth2Authenticator extends AbstractAuthenticator
             trim($firstName),
             trim($lastName)
         ];
+    }
+    
+    protected function getExternalRolesFromToken(AuthenticationTokenInterface $token) : array
+    {
+        return [];
     }
 }
