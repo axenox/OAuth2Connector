@@ -23,6 +23,7 @@ use exface\Core\Actions\Login;
 use exface\Core\Exceptions\UnexpectedValueException;
 use exface\Core\DataTypes\PhpClassDataType;
 use exface\Core\Widgets\LoginPrompt;
+use exface\Core\Widgets\Form;
 
 trait OAuth2Trait
 {    
@@ -188,27 +189,19 @@ trait OAuth2Trait
     
     /**
      * 
-     * {@inheritdoc}
-     * @see AuthenticationProviderInterface::createLoginWidget()
+     * {@inheritDoc}
+     * @see \exface\Core\CommonLogic\Security\Authenticators\AbstractAuthenticator::createLoginForm()
      */
-    public function createLoginWidget(iContainOtherWidgets $container) : iContainOtherWidgets
+    protected function createLoginForm(Form $loginForm) : Form
     {
-        if ($container instanceof LoginPrompt) {
-            $loginForm = WidgetFactory::create($container->getPage(), 'Form', $container);
-            $loginForm->setObjectAlias('exface.Core.LOGIN_DATA');
-            $loginForm->setCaption($this->getName());
-            $container->addWidget($loginForm);
-        } else {
-            $loginForm = $container;
-        }
-        
         $loginForm
-        ->addWidget($this->createButtonWidget($container))
-        ->addWidget(WidgetFactory::createFromUxonInParent($container, new UxonObject([
+        ->addWidget($this->createButtonWidget($loginForm))
+        ->addWidget(WidgetFactory::createFromUxonInParent($loginForm, new UxonObject([
             'attribute_alias' => 'AUTH_TOKEN_CLASS',
             'value' => '\\' . OAuth2RequestToken::class,
             'widget_type' => 'InputHidden'
         ])));
+        $container = $loginForm->getParent();
         if ($container instanceof iHaveButtons) {
             foreach ($container->getButtons() as $btn) {
                 if ($btn->getAction() instanceof Login) {
@@ -216,7 +209,7 @@ trait OAuth2Trait
                 }
             }
         }
-        return $container;
+        return $loginForm;
     }
     
     /**

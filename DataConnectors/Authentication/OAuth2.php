@@ -14,6 +14,8 @@ use axenox\OAuth2Connector\CommonLogic\Security\AuthenticationToken\OAuth2Reques
 use axenox\OAuth2Connector\CommonLogic\Security\Authenticators\OAuth2Trait;
 use GuzzleHttp\Psr7\ServerRequest;
 use exface\Core\Exceptions\Security\AuthenticationFailedError;
+use exface\Core\Interfaces\Widgets\iContainOtherWidgets;
+use exface\Core\Interfaces\Selectors\UserSelectorInterface;
 
 /**
  * Logs in to a data source using the OAuth 2.0 protocol.
@@ -48,6 +50,16 @@ class OAuth2 extends AbstractHttpAuthenticationProvider
         }
         
         return $this->exchangeOAuthToken($token);
+    }
+    
+    /**
+     * 
+     * {@inheritDoc}
+     * @see \exface\Core\Interfaces\Security\AuthenticationProviderInterface::createLoginWidget()
+     */
+    public function createLoginWidget(iContainOtherWidgets $loginForm, bool $saveCredentials = true, UserSelectorInterface $credentialsOwner = null) : iContainOtherWidgets
+    {
+        return $this->createLoginForm($loginForm);
     }
     
     /**
