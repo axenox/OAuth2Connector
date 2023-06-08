@@ -45,6 +45,9 @@ class OAuth2 extends AbstractHttpAuthenticationProvider
     
     public function authenticate(AuthenticationTokenInterface $token): AuthenticationTokenInterface
     {
+        if ($token instanceof OAuth2AuthenticatedToken) {
+            return $token;
+        }
         if (! $token instanceof OAuth2RequestToken) {
             throw new InvalidArgumentException('Cannot use token ' . get_class($token) . ' in OAuth2 authentication: only OAuth2RequestToken or derivatives allowed!');
         }

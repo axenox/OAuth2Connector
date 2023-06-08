@@ -13,6 +13,10 @@ use exface\Core\CommonLogic\Security\Authenticators\Traits\CreateUserFromTokenTr
 use exface\Core\CommonLogic\Security\Authenticators\Traits\SyncRolesWithTokenTrait;
 use exface\Core\Interfaces\Security\AuthenticationProviderInterface;
 use exface\Core\DataTypes\StringDataType;
+use exface\Core\Formulas\GetConfig;
+use exface\Core\CommonLogic\UxonObject;
+use exface\Core\Factories\DataConnectionFactory;
+use exface\Core\Interfaces\DataSources\DataConnectionInterface;
 
 /**
  * Authenticates users via OAuth 2.0 optionally creating new workbench users automatically.
@@ -20,6 +24,31 @@ use exface\Core\DataTypes\StringDataType;
  * This is a generic OAuth authenticator. If you are looking for OAuth with a popular cloud
  * service try looking for a specific connector app first: e.g. `axenox.GoogleConnector` or
  * `axenox.Microsoft365Connector`.
+ * 
+ * ## Sharing OAuth2 tokens between authenticators and data connections
+ * 
+ * If you are using OAuth2 single-sign-on with a service (e.g. a cloud) and data sources of
+ * that service at the same time, you don't want your users to need to login twice. In this
+ * case you can tell your authenticator to share the token received from the OAuth2 provider
+ * with the connection. It will then be stored as a private credential set for the user
+ * being authenticated and the connection will be able to use it too.
+ * 
+ * ```
+ *  {
+ *      "class": "\\axenox\\OAuth2Connector\\CommonLogic\\Security\\Authenticators\\OAuth2Autenticator",
+ *      "id": "SOME_UNIQUE_ID",
+ *      "client_id": "client id from your OAuth provider",
+ *      "client_secret": "client secret from your OAuth provider",
+ *      "scopes": [
+ *          "scopes_needed_for_sso",
+ *          "scopes_needed_for_data_connections
+ *      ],
+ *      "share_token_with_connections": [
+ *          "my.App.ConnectionAlias"
+ *      ]
+ *  }
+ * 
+ * ```
  * 
  * ## Examples
  * 
@@ -58,6 +87,8 @@ class OAuth2Authenticator extends AbstractAuthenticator
     
     private $authenticatedToken = null;
     
+    private $saveTokenToConnectionsSelectors = [];
+    
     /**
      * 
      * {@inheritDoc}
@@ -65,26 +96,33 @@ class OAuth2Authenticator extends AbstractAuthenticator
      */
     public function authenticate(AuthenticationTokenInterface $token) : AuthenticationTokenInterface
     {
-        $token = $this->exchangeOAuthToken($token);
+        $authenticatedToken = $this->exchangeOAuthToken($token);
         
         $user = null;
-        if ($this->userExists($token) === true) {
-            $user = $this->getUserFromToken($token);
+        if ($this->userExists($authenticatedToken) === true) {
+            $user = $this->getUserFromToken($authenticatedToken);
         } elseif ($this->getCreateNewUsers(true) === true) {
-            $user = $this->createUserWithRoles($this->getWorkbench(), $token, $this->getNewUserData($token->getAccessToken()));
+            $user = $this->createUserWithRoles($this->getWorkbench(), $authenticatedToken, $this->getNewUserData($authenticatedToken->getAccessToken()));
         } else {
-            throw new AuthenticationFailedError($this, "Authentication failed, no workbench user '{$token->getUsername()}' exists: either create one manually or enable `create_new_users` in authenticator configuration!", '7AL3J9X');
+            throw new AuthenticationFailedError($this, "Authentication failed, no workbench user '{$authenticatedToken->getUsername()}' exists: either create one manually or enable `create_new_users` in authenticator configuration!", '7AL3J9X');
         }
         // method checks if sync_roles is set to true or false
-        $this->syncUserRoles($user, $token);
+        $this->syncUserRoles($user, $authenticatedToken);
         
-        $this->logSuccessfulAuthentication($user, $token->getUsername());
-        if ($token->getUsername() !== $user->getUsername()) {
-            return new OAuth2AuthenticatedToken($user->getUsername(), $token->getAccessToken(), $token->getFacade());
+        $this->logSuccessfulAuthentication($user, $authenticatedToken->getUsername());
+        if ($authenticatedToken->getUsername() !== $user->getUsername()) {
+            return new OAuth2AuthenticatedToken($user->getUsername(), $authenticatedToken->getAccessToken(), $authenticatedToken->getFacade());
         }
-        $this->authenticatedToken = $token;
-        $this->storeToken($token->getAccessToken());
-        return $token;
+        $this->authenticatedToken = $authenticatedToken;
+        $this->storeToken($authenticatedToken->getAccessToken());
+        
+        if ($this->isSharingTokenWithConnections()) {
+            foreach ($this->getShareTokenWithConnections() as $connection) {
+                $connection->authenticate($authenticatedToken, true, $user, true);
+            }
+        }
+        
+        return $authenticatedToken;
     }
     
     /**
@@ -262,8 +300,51 @@ class OAuth2Authenticator extends AbstractAuthenticator
         ];
     }
     
+    /**
+     * 
+     * @param AuthenticationTokenInterface $token
+     * @return array
+     */
     protected function getExternalRolesFromToken(AuthenticationTokenInterface $token) : array
     {
         return [];
+    }
+    
+    /**
+     * 
+     * @return DataConnectionInterface[]
+     */
+    protected function getShareTokenWithConnections() : array
+    {
+        $connections = [];
+        foreach ($this->saveTokenToConnectionsSelectors as $selectorString) {
+            $connections[] = DataConnectionFactory::createFromModel($this->getWorkbench(), $selectorString);
+        }
+        return $connections;
+    }
+    
+    /**
+     * 
+     * @return bool
+     */
+    protected function isSharingTokenWithConnections() : bool
+    {
+        return ! empty($this->saveTokenToConnectionsSelectors);
+    }
+    
+    /**
+     * List of data connection aliases or UIDs to share the OAuth2 token with after authentication
+     * 
+     * @uxon-property share_token_with_connections
+     * @uxon-type array
+     * @uxon-template [""]
+     * 
+     * @param UxonObject $uxonArray
+     * @return OAuth2Authenticator
+     */
+    protected function setShareTokenWithConnections(UxonObject $uxonArray) : OAuth2Authenticator
+    {
+        $this->saveTokenToConnectionsSelectors = $uxonArray->toArray();
+        return $this;
     }
 }
