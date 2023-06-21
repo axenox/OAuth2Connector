@@ -106,8 +106,6 @@ class OAuth2Authenticator extends AbstractAuthenticator
         } else {
             throw new AuthenticationFailedError($this, "Authentication failed, no workbench user '{$authenticatedToken->getUsername()}' exists: either create one manually or enable `create_new_users` in authenticator configuration!", '7AL3J9X');
         }
-        // method checks if sync_roles is set to true or false
-        $this->syncUserRoles($user, $authenticatedToken);
         
         $this->logSuccessfulAuthentication($user, $authenticatedToken->getUsername());
         if ($authenticatedToken->getUsername() !== $user->getUsername()) {
@@ -121,6 +119,9 @@ class OAuth2Authenticator extends AbstractAuthenticator
                 $connection->authenticate($authenticatedToken, true, $user, true);
             }
         }
+        
+        // method checks if sync_roles is set to true or false
+        $this->syncUserRoles($user, $authenticatedToken);
         
         return $authenticatedToken;
     }
