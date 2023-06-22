@@ -83,7 +83,6 @@ class OAuth2Authenticator extends AbstractAuthenticator
 {
     use OAuth2Trait;
     use CreateUserFromTokenTrait;
-    use SyncRolesWithTokenTrait;
     
     private $authenticatedToken = null;
     
