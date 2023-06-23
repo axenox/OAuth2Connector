@@ -302,16 +302,6 @@ class OAuth2Authenticator extends AbstractAuthenticator
     
     /**
      * 
-     * @param AuthenticationTokenInterface $token
-     * @return array
-     */
-    protected function getExternalRolesFromToken(AuthenticationTokenInterface $token) : array
-    {
-        return [];
-    }
-    
-    /**
-     * 
      * @return DataConnectionInterface[]
      */
     protected function getShareTokenWithConnections() : array
