@@ -95,8 +95,10 @@ class OAuth2Authenticator extends AbstractAuthenticator
      */
     public function authenticate(AuthenticationTokenInterface $token) : AuthenticationTokenInterface
     {
+        // Perform authentication via OAuth2 provider
         $authenticatedToken = $this->exchangeOAuthToken($token);
         
+        // Ensure, the workbench user exists
         $user = null;
         if ($this->userExists($authenticatedToken) === true) {
             $user = $this->getUserFromToken($authenticatedToken);
@@ -106,20 +108,30 @@ class OAuth2Authenticator extends AbstractAuthenticator
             throw new AuthenticationFailedError($this, "Authentication failed, no workbench user '{$authenticatedToken->getUsername()}' exists: either create one manually or enable `create_new_users` in authenticator configuration!", '7AL3J9X');
         }
         
+        // Log authentication attempt
         $this->logSuccessfulAuthentication($user, $authenticatedToken->getUsername());
+        
+        // If the username of the workbench user is different from that in the authentication provider
+        // (e.g. because of `username_replace_characters`), recreate the workbench auth token using
+        // the same OAuth2 token, but a different username
         if ($authenticatedToken->getUsername() !== $user->getUsername()) {
-            return new OAuth2AuthenticatedToken($user->getUsername(), $authenticatedToken->getAccessToken(), $authenticatedToken->getFacade());
+            $authenticatedToken = new OAuth2AuthenticatedToken($user->getUsername(), $authenticatedToken->getAccessToken(), $authenticatedToken->getFacade());
         }
+        
+        // Store the authenticated token
         $this->authenticatedToken = $authenticatedToken;
         $this->storeToken($authenticatedToken->getAccessToken());
         
+        // Share it with an OAuth2 connection if required
         if ($this->isSharingTokenWithConnections()) {
             foreach ($this->getShareTokenWithConnections() as $connection) {
                 $connection->authenticate($authenticatedToken, true, $user, true);
             }
         }
         
-        // method checks if sync_roles is set to true or false
+        // Sync user roles
+        // This MUST be done AFTER sharing the token because the connection may already require it:
+        // e.g. to read roles from Azure, we need to share the SSO token with the connection first.
         $this->syncUserRoles($user, $authenticatedToken);
         
         return $authenticatedToken;
