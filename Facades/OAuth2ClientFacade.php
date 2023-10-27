@@ -17,6 +17,8 @@ use axenox\OAuth2Connector\Exceptions\OAuthSessionNotStartedException;
 use axenox\OAuth2Connector\Interfaces\OAuth2ClientFacadeInterface;
 use exface\Core\Interfaces\Security\AuthenticationProviderInterface;
 use exface\UrlDataConnector\Interfaces\HttpAuthenticationProviderInterface;
+use exface\Core\Interfaces\Security\AuthenticationTokenInterface;
+use axenox\OAuth2Connector\CommonLogic\Security\AuthenticationToken\OAuth2AuthenticatedToken;
 
 /**
  * 
@@ -50,6 +52,7 @@ class OAuth2ClientFacade extends AbstractHttpFacade implements OAuth2ClientFacad
     {
         $path = $this->getUriPath($request);
         $user = $this->getWorkbench()->getSecurity()->getAuthenticatedUser();
+        $authenticatedToken = null;
         $debug = [
             'workbench_user' => $user->getUsername()
         ];
@@ -94,7 +97,7 @@ class OAuth2ClientFacade extends AbstractHttpFacade implements OAuth2ClientFacad
                         $this->getWorkbench()->getLogger()->debug('OAuth2 facade: session-based start of ' . $debug['session_type'], $debug);
                         $authProvider = $this->getWorkbench()->getSecurity();
                         try {
-                            $authProvider->authenticate($requestToken);
+                            $authenticatedToken = $authProvider->authenticate($requestToken);
                         } catch (AuthenticationFailedError $e) {
                             $this->getWorkbench()->getLogger()->logException($e);
                         }
@@ -120,12 +123,19 @@ class OAuth2ClientFacade extends AbstractHttpFacade implements OAuth2ClientFacad
                 }
         }
         
-        if ($redirect) {
-            $debug['result'] = 'Redirecting to "' . $redirect . '"';
-            $response = new Response(200, ['Location' => $redirect]);
-        } else {
-            $debug['result'] = 'ERROR, no redirect URL';
-            $response = new Response(500, [], 'ERROR: cannot determine redirect URL!');
+        switch (true) {
+            case $redirect:
+                $debug['result'] = 'Redirecting to "' . $redirect . '"';
+                $response = new Response(200, ['Location' => $redirect]);
+                break;
+            case $authenticatedToken instanceof OAuth2AuthenticatedToken:
+                $debug['result'] = 'Authenticated user "' . $authenticatedToken->getUsername() . '". Closing window.';
+                $response = new Response(200, [], $this->buildHtmlSuccess($authenticatedToken));
+                break;
+            default:
+                $debug['result'] = 'ERROR, no redirect URL';
+                $response = new Response(500, [], 'ERROR: cannot determine redirect URL!');
+                break;
         }
         $this->getWorkbench()->getLogger()->debug('OAuth2 facade: ' . $debug['result'], $debug);
         return $response;
@@ -246,5 +256,27 @@ class OAuth2ClientFacade extends AbstractHttpFacade implements OAuth2ClientFacad
         }
         
         return $base . $path;
+    }
+    
+    protected function buildHtmlSuccess(OAuth2AuthenticatedToken $authenticatedToken) : string
+    {
+        return <<<HTML
+<!DOCTYPE html>
+<html>
+<head>
+</head>
+<body>
+    <script>
+        let token = "{$authenticatedToken->getAccessToken()}";
+        if (window.opener && window.opener.parent) {
+            window.opener.parent.oauthCallback(token);
+        } else {
+            window.parent.oauthCallback(token);
+        }
+        window.close();
+    </script>
+</body>
+</html>
+HTML;
     }
 }
