@@ -90,7 +90,7 @@ class OAuth2 extends AbstractHttpAuthenticationProvider
         
         switch (true) {
             case ! $token:
-                throw new AuthenticationFailedError($this->getConnection(), 'Please authenticate first!');
+                throw new AuthenticationFailedError($this->getConnection(), 'No saved credentials found. Please authenticate first!');
             case $token->hasExpired() && $this->getRefreshToken($token):
                 $clientFacade = $this->getOAuthClientFacade();
                 $hash = $this->getOAuthProviderHash();
