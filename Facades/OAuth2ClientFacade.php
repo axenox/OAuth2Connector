@@ -119,13 +119,14 @@ class OAuth2ClientFacade extends AbstractHttpFacade implements OAuth2ClientFacad
                         throw new RuntimeException('Invalid OAuth2 session type "' . $session['type'] . '"!');
                 }
         }
-        
+        $headers = $this->buildHeadersCommon();
         if ($redirect) {
             $debug['result'] = 'Redirecting to "' . $redirect . '"';
-            $response = new Response(200, ['Location' => $redirect]);
+            $headers = ['Location' => $redirect];
+            $response = new Response(302, $headers);
         } else {
             $debug['result'] = 'ERROR, no redirect URL';
-            $response = new Response(500, [], 'ERROR: cannot determine redirect URL!');
+            $response = new Response(500, $headers, 'ERROR: cannot determine redirect URL!');
         }
         $this->getWorkbench()->getLogger()->debug('OAuth2 facade: ' . $debug['result'], $debug);
         return $response;
@@ -233,15 +234,17 @@ class OAuth2ClientFacade extends AbstractHttpFacade implements OAuth2ClientFacad
     public function buildUrlForProvider(AuthenticationProviderInterface $provider, string $hash, $relativeToSiteRoot = true) : string
     {
         $base = $this->buildUrlToFacade(! $relativeToSiteRoot);
+        // Make sure to avoid any type of caching by adding a timestamp URL parameter
+        $cacheBuster = '&t=' . time();
         switch (true) {
             case $provider instanceof DataConnectionInterface:
-                $path = '/connection/' . $provider->getAliasWithNamespace() . '?hash=' . $hash;
+                $path = '/connection/' . $provider->getAliasWithNamespace() . '?hash=' . $hash . $cacheBuster;
                 break;
             case $provider instanceof HttpAuthenticationProviderInterface:
-                $path = '/connection/' . $provider->getConnection()->getAliasWithNamespace() . '?hash=' . $hash;
+                $path = '/connection/' . $provider->getConnection()->getAliasWithNamespace() . '?hash=' . $hash . $cacheBuster;
                 break;
             case $provider instanceof AuthenticatorInterface:
-                $path = '/authenticate' . '?hash=' . $hash;
+                $path = '/authenticate' . '?hash=' . $hash . $cacheBuster;
                 break;
         }
         
