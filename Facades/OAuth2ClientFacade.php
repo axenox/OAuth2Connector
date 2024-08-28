@@ -2,6 +2,7 @@
 namespace axenox\OAuth2Connector\Facades;
 
 use exface\Core\Facades\AbstractHttpFacade\AbstractHttpFacade;
+use exface\Core\Interfaces\Log\LoggerInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use GuzzleHttp\Psr7\Response;
@@ -53,6 +54,7 @@ class OAuth2ClientFacade extends AbstractHttpFacade implements OAuth2ClientFacad
         $debug = [
             'workbench_user' => $user->getUsername()
         ];
+        $logger = $this->getWorkbench()->getLogger();
         
         switch (true) {
             case StringDataType::startsWith($path, 'connection'):
@@ -60,7 +62,7 @@ class OAuth2ClientFacade extends AbstractHttpFacade implements OAuth2ClientFacad
                 $authProvider = DataConnectionFactory::createFromModel($this->getWorkbench(), StringDataType::substringAfter($path, 'connection/'));
                 $debug['oauth_hash'] = $requestToken->getOAuthProviderHash();
                 $debug['oauth_provider'] = $authProvider->getAliasWithNamespace();
-                $this->getWorkbench()->getLogger()->debug('OAuth2 facade: URL-based start of connection for "' . $authProvider->getAliasWithNamespace() . '"', $debug);
+                $logger->debug('OAuth2 facade: URL-based start of connection for "' . $authProvider->getAliasWithNamespace() . '"', $debug);
                 if ($user->isAnonymous()) {
                     throw new RuntimeException('Cannot save OAuth credentials without a user being logged on!');
                 }
@@ -74,15 +76,21 @@ class OAuth2ClientFacade extends AbstractHttpFacade implements OAuth2ClientFacad
                 $authProvider = $this->getWorkbench()->getSecurity();
                 $debug['oauth_hash'] = $requestToken->getOAuthProviderHash();
                 $debug['oauth_provider'] = 'Workbench security';
-                $this->getWorkbench()->getLogger()->debug('OAuth2 facade: URL-based start of authentication via workbench security', $debug);
+                $logger->debug('OAuth2 facade: URL-based start of authentication via workbench security', $debug);
                 $refreshedToken = $authProvider->authenticate($requestToken);
                 if ($refreshedToken) {
-                    $this->getWorkbench()->getLogger()->debug('OAuth2 facade: token refreshed for user "' . $refreshedToken->getUsername() . '"', $debug);
+                    $logger->debug('OAuth2 facade: token refreshed for user "' . $refreshedToken->getUsername() . '"', $debug);
                     $redirect = $request->getHeader('referer')[0];
                 }
                 break;
-            default:            
-                $session = $this->getOAuthSession();
+            default: 
+                try {           
+                    $session = $this->getOAuthSession();
+                } catch (OAuthSessionNotStartedException $e) {
+                    $redirect = $this->getWorkbench()->getUrl();
+                    $logger->logException($e, LoggerInterface::ERROR);
+                    break;
+                }
                 $redirect = $session['redirect'];
                 $requestToken = new OAuth2RequestToken($request, ($session['hash'] ?? ''), $this);
                 $debug['oauth_session'] = $session;
@@ -91,17 +99,17 @@ class OAuth2ClientFacade extends AbstractHttpFacade implements OAuth2ClientFacad
                     case self::INITIATOR_TYPE_AUTHENTICATOR:
                         $debug['session_type'] = self::INITIATOR_TYPE_AUTHENTICATOR;
                         $debug['oauth_provider'] = 'Workbench security';
-                        $this->getWorkbench()->getLogger()->debug('OAuth2 facade: session-based start of ' . $debug['session_type'], $debug);
+                        $logger->debug('OAuth2 facade: session-based start of ' . $debug['session_type'], $debug);
                         $authProvider = $this->getWorkbench()->getSecurity();
                         try {
                             $authProvider->authenticate($requestToken);
                         } catch (AuthenticationFailedError $e) {
-                            $this->getWorkbench()->getLogger()->logException($e);
+                            $logger->logException($e);
                         }
                         break;
                     case self::INITIATOR_TYPE_CONNECTION:
                         $debug['session_type'] = self::INITIATOR_TYPE_AUTHENTICATOR;
-                        $this->getWorkbench()->getLogger()->debug('OAuth2 facade: session starting ' . $debug['session_type'] . ' "' . $session['selector'] . '" for user "' . $user->getUsername() . '"', $debug);
+                        $logger->debug('OAuth2 facade: session starting ' . $debug['session_type'] . ' "' . $session['selector'] . '" for user "' . $user->getUsername() . '"', $debug);
                         // TODO get the user from the Login action somehow!
                         if ($user->isAnonymous()) {
                             throw new RuntimeException('Cannot save OAuth credentials without a user being logged on!');
@@ -110,9 +118,9 @@ class OAuth2ClientFacade extends AbstractHttpFacade implements OAuth2ClientFacad
                         $debug['oauth_provider'] = $authProvider->getAliasWithNamespace();
                         try {
                             $authenticatedToken = $authProvider->authenticate($requestToken, true, $user, true);
-                            $this->getWorkbench()->getLogger()->debug('OAuth2 facade: Authenticated user "' . $authenticatedToken->getUsername() . '"', $debug);
+                            $logger->debug('OAuth2 facade: Authenticated user "' . $authenticatedToken->getUsername() . '"', $debug);
                         } catch (AuthenticationFailedError $e) {
-                            $this->getWorkbench()->getLogger()->logException($e);
+                            $logger->logException($e);
                         }
                         break;
                     default:
@@ -128,7 +136,7 @@ class OAuth2ClientFacade extends AbstractHttpFacade implements OAuth2ClientFacad
             $debug['result'] = 'ERROR, no redirect URL';
             $response = new Response(500, $headers, 'ERROR: cannot determine redirect URL!');
         }
-        $this->getWorkbench()->getLogger()->debug('OAuth2 facade: ' . $debug['result'], $debug);
+        $logger->debug('OAuth2 facade: ' . $debug['result'], $debug);
         return $response;
     }
     
