@@ -2,6 +2,11 @@
     "object_alias": "exface.Core.AUTHORIZATION_POLICY",
     "columns": [
         {
+            "name": "_EXPORT_SUMMARY",
+            "hidden": true,
+            "attribute_alias": "NAME"
+        },
+        {
             "name": "CREATED_ON",
             "attribute_alias": "CREATED_ON"
         },
@@ -68,10 +73,15 @@
         {
             "name": "TARGET_FACADE",
             "attribute_alias": "TARGET_FACADE"
+        },
+        {
+            "name": "TARGET_APP",
+            "attribute_alias": "TARGET_APP"
         }
     ],
     "rows": [
         {
+            "_EXPORT_SUMMARY": "OAuth2 client facade for everyone",
             "CREATED_ON": "2022-12-01 21:43:37",
             "MODIFIED_ON": "2022-12-01 21:43:37",
             "CREATED_BY_USER": "0x31000000000000000000000000000000",
@@ -82,13 +92,14 @@
             "EFFECT": "P",
             "APP": "0x11ebb9fe152517a0b9fe847beb4a5184",
             "AUTHORIZATION_POINT": "0x11ea8e12097517b8801f025041000001",
-            "TARGET_PAGE_GROUP": "",
-            "TARGET_USER_ROLE": "",
-            "TARGET_OBJECT": "",
+            "TARGET_PAGE_GROUP": null,
+            "TARGET_USER_ROLE": null,
+            "TARGET_OBJECT": null,
             "CONDITION_UXON": null,
-            "TARGET_ACTION_MODEL": "",
+            "TARGET_ACTION_MODEL": null,
             "TARGET_ACTION_PROTOTYPE": "",
-            "TARGET_FACADE": "axenox\/oauth2connector\/Facades\/OAuth2ClientFacade.php"
+            "TARGET_FACADE": "axenox/oauth2connector/Facades/OAuth2ClientFacade.php",
+            "TARGET_APP": null
         }
     ],
     "totals_rows": [],
