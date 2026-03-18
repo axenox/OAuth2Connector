@@ -7,7 +7,7 @@ use exface\Core\Interfaces\Exceptions\AuthenticationExceptionInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use exface\Core\Widgets\DebugMessage;
-use exface\Core\CommonLogic\Debugger\HttpMessageDebugWidgetRenderer;
+use exface\Core\CommonLogic\Debugger\HttpMessageDebugger;
 
 /**
  * 
@@ -72,7 +72,7 @@ class OAuthHttpException extends AuthenticationRuntimeError
     public function createDebugWidget(DebugMessage $debug_widget)
     {
         if (null !== $request = $this->getRequest()) {
-            $renderer = new HttpMessageDebugWidgetRenderer($request, $this->getResponse(), 'OAuth2 request', 'OAuth2 response');
+            $renderer = new HttpMessageDebugger($request, $this->getResponse(), 'OAuth2 request', 'OAuth2 response');
             $debug_widget = $renderer->createDebugWidget($debug_widget);
         }
         
