@@ -18,7 +18,25 @@ use exface\Core\Interfaces\Widgets\iContainOtherWidgets;
 use exface\Core\Interfaces\Selectors\UserSelectorInterface;
 
 /**
- * Logs in to a data source using the OAuth 2.0 protocol.
+ * Generic authentication provider to access data sources via the OAuth 2.0 protocol with manual configuration.
+ * 
+ * ## Examples
+ * 
+ * ## Jira REST API
+ * 
+ * ```json
+ * {
+ *  "url": "https://api.atlassian.com/ex/jira/<app_id>/rest/api/3/",
+ *  "authentication": {
+ *      "class": "\\axenox\\OAuth2Connector\\DataConnectors\\Authentication\\OAuth2",
+ *      "client_id": "<client_id>",
+ *      "client_secret": "<secret>",
+ *      "url_access_token": "https://auth.atlassian.com/oauth/token",
+ *      "scopes": ["read:jira-work"]
+ *  }
+ * }
+ * 
+ * ```
  * 
  * ## Debugging
  * 
@@ -26,7 +44,7 @@ use exface\Core\Interfaces\Selectors\UserSelectorInterface;
  * in the log. Keep in mind, that this might include sensitive personal information depending on what the
  * provider includes in its responses.
  * 
- * @author andrej.kabachnik
+ * @author Andrej Kabachnik
  *
  */
 class OAuth2 extends AbstractHttpAuthenticationProvider
@@ -86,22 +104,27 @@ class OAuth2 extends AbstractHttpAuthenticationProvider
             return $request;
         }
         
-        $token = $this->getTokenStored();
+        $accessToken = $this->getTokenStored();
+        $grant = $this->getGrantType();
         
         switch (true) {
-            case ! $token:
+            // If we do not have an access token and cannot get one silently - throw an auth error to show the login form
+            case ! $accessToken:
                 throw new AuthenticationFailedError($this->getConnection(), 'No saved credentials found. Please authenticate first!');
-            case $token->hasExpired() && $this->getRefreshToken($token):
+            // If we do not have an access token, but can get ony via client credentials grant - authenticate silently
+            case ! $accessToken && $grant === 'client_credentials':
+            // If there is an access token, but it has expired - refresh it silently (if possible)
+            case $accessToken->hasExpired() && $this->getRefreshToken($accessToken):
                 $clientFacade = $this->getOAuthClientFacade();
                 $hash = $this->getOAuthProviderHash();
                 $fakeRequest = new ServerRequest('GET', $clientFacade->buildUrlForProvider($this, $hash));
                 $requestToken = new OAuth2RequestToken($fakeRequest, $hash, $clientFacade);
                 $authenticatedToken = $this->getConnection()->authenticate($requestToken, true, $this->getWorkbench()->getSecurity()->getAuthenticatedUser(), true);
-                $token = $authenticatedToken->getAccessToken();
+                $accessToken = $authenticatedToken->getAccessToken();
                 break;
         }
         
-        $request = $request->withHeader('Authorization', 'Bearer ' . $token->getToken());
+        $request = $request->withHeader('Authorization', 'Bearer ' . $accessToken->getToken());
         
         return $request;
     }

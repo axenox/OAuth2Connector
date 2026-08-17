@@ -22,25 +22,28 @@ use exface\Core\Interfaces\Widgets\iHaveButtons;
 use exface\Core\Actions\Login;
 use exface\Core\Exceptions\UnexpectedValueException;
 use exface\Core\DataTypes\PhpClassDataType;
-use exface\Core\Widgets\LoginPrompt;
 use exface\Core\Widgets\Form;
 
+/**
+ * This trait implements common OAuth2 logic for authenticators and data connection auth providers.
+ * 
+ * This trait aims to be vendor-agnostic. It should be usable with any OAuth2 provider, as long as the correct URLs 
+ * and client credentials are provided.
+ * 
+ * @author Andrej Kabachnik
+ */
 trait OAuth2Trait
 {    
     private $clientFacade = null;
+    private $provider = null;
     
+    private $grantType = null;
     private $clientId = null;
-    
     private $clientSecret = null;
     
     private $urlAuthorize = null;
-    
     private $urlAccessToken = null;
-    
     private $urlResourceOwnerDetails = null;
-    
-    private $provider = null;
-    
     private $scopes = [];
     
     private $usernameResourceOwnerField = null;
@@ -110,6 +113,21 @@ trait OAuth2Trait
                     null,
                     new OAuthHttpException($this, 'OAuth2 error: ' . htmlspecialchars($requestParams['error'], ENT_QUOTES, 'UTF-8'), null, null, $request)
                 );
+                
+            // If we are using the (non-interactive) client credentials grant, we can get the access token directly from
+            // the provider
+            case $this->getGrantType() === 'client_credentials':
+                try {
+                    $oauthToken = $provider->getAccessToken('client_credentials');
+                    if ($this->isDebugMode()) {
+                        $this->getWorkbench()->getLogger()->debug('OAuth2: authentication successfull. Received new token from provider', [
+                            'oauth_access_token' => $oauthToken->jsonSerialize()
+                        ]);
+                    }
+                } catch (\Throwable $e) {
+                    throw new OAuthHttpException($this, 'Cannot get OAuth2 access token from provider response: ' . $e->getMessage(), null, $e, $request);
+                }
+                break;
                 
             // If we are not processing a provider response, either use the stored token
             // or redirect to the provider to start authentication
@@ -234,7 +252,43 @@ trait OAuth2Trait
             'urlAccessToken'            => $this->getUrlAccessToken(),
             'urlResourceOwnerDetails'   => $this->getUrlResourceOwnerDetails()
         ];
+        
+        // Add scopes if any are set
+        $scopes = $this->getScopes();
+        if (! empty($scopes)) {
+            $options['scope'] = $scopes;
+        }
+        
         return new GenericProvider($options);
+    }
+
+    /**
+     * @return string
+     */
+    protected function getGrantType() : string
+    {
+        return $this->grantType ?? 'authorization_code';
+    }
+
+    /**
+     * The OAuth2 grant type (flow) to use - typically `authorization_code` or `client_credentials`.
+     * 
+     * The exact values depend on the specific connector being used. For generic OAuth2 connections, these are available:
+     * 
+     * - `authorization_code` - this will redirect the user to the provider to sign in with his personal credentials.
+     * - `client_credentials` - use this will authenticate in background using the client ID and secret only, without 
+     * user interaction. This is typically used for service accounts or server-to-server communication.
+     *
+     * @uxon-property grant_type
+     * @uxon-type [authorization_code,client_credentials]
+     *
+     * @param string $value
+     * @return OAuth2Authenticator
+     */
+    protected function setGrantType(string $value) : OAuth2Authenticator
+    {
+        $this->grantType = $value;
+        return $this;
     }
     
     /**
